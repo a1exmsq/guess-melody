@@ -1,0 +1,53 @@
+import { Volume2, VolumeX } from 'lucide-react';
+import { useState } from 'react';
+
+interface Props {
+  deviceId: string | null;
+}
+
+export default function VolumeSlider({ deviceId }: Props) {
+  const [volume, setVolume] = useState(50);
+  const [isMuted, setIsMuted] = useState(false);
+
+  const handleChange = (v: number) => {
+    setVolume(v);
+    setIsMuted(v === 0);
+    if (deviceId) {
+      fetch('/api/spotify/volume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId, volume: v }),
+      }).catch(() => {});
+    }
+  };
+
+  const toggleMute = () => {
+    if (isMuted) {
+      handleChange(50);
+    } else {
+      handleChange(0);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <button onClick={toggleMute} className="p-1 hover:bg-gray-800 rounded-full transition-colors">
+        {isMuted ? <VolumeX className="w-5 h-5 text-gray-400" /> : <Volume2 className="w-5 h-5 text-brand-primary" />}
+      </button>
+      <div className="relative w-24 h-1.5 bg-gray-800 rounded-full">
+        <div 
+          className="absolute left-0 top-0 h-full bg-brand-primary rounded-full"
+          style={{ width: `${volume}%` }}
+        />
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={volume}
+          onChange={(e) => handleChange(Number(e.target.value))}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+        />
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,7 @@
+# Dev profile — override settings here when needed.
+# Main configuration lives in application.yml.
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
