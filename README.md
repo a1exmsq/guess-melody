@@ -1,6 +1,6 @@
 # 🎵 Guess Melody — Real-time Multiplayer Music Guessing Game
 
-A full-stack web application where players compete in real time to guess songs from short audio previews. Built as a portfolio project to practise Java backend development, third-party API integration, WebSocket communication, and modern frontend engineering.
+A full-stack web application where players guess songs from short Spotify snippets. Play solo to practise or compete with friends in real-time multiplayer rooms. Built as a portfolio project to demonstrate Java backend development, third-party API integration, WebSocket communication, and a modern React frontend.
 
 > **Note:** This is an educational pet project. It is not affiliated with or endorsed by Spotify.
 
@@ -8,13 +8,14 @@ A full-stack web application where players compete in real time to guess songs f
 
 ## ✨ Features
 
-- **Single-player mode** — practise guessing tracks from a default pool
-- **Multiplayer rooms** — create or join a room with a 5-character code and play against friends in real time
-- **Spotify playlist import** — authenticate with Spotify and import personal playlists for custom games
-- **Progressive difficulty** — each round reveals progressively longer audio snippets (0.5s → 1s → ...)
-- **Real-time game state** — WebSocket (STOMP) broadcasts round starts, guesses, scores, and winners instantly
-- **Room management** — host controls, player list, scoreboard, and round timers
-- **Responsive UI** — dark-themed React frontend styled with Tailwind CSS
+- **Solo mode** — import any Spotify playlist and guess tracks across configurable rounds
+- **Multiplayer rooms** — create or join a room with a short code and play against friends in real time
+- **Spotify integration** — OAuth login, playlist import, track search, and playback via the Web Playback SDK
+- **Progressive snippets** — each attempt reveals a longer audio snippet (0.5s → 1s → 2s → ...)
+- **Artist hints** — guess the artist for partial points, then finish the round by guessing the title
+- **Real-time state** — WebSocket (STOMP) broadcasts round starts, guesses, scores, and game-over events
+- **Responsive dark UI** — glassmorphism design built with React, TypeScript, Vite, and Tailwind CSS
+- **Auto-build pipeline** — Gradle builds and bundles the React app automatically; no manual `npm run build` needed
 
 ---
 
@@ -23,13 +24,12 @@ A full-stack web application where players compete in real time to guess songs f
 ### Backend
 - **Java 17 / 21**
 - **Spring Boot 3.3**
-- **Spring WebSocket (STOMP)** — real-time bidirectional communication
+- **Spring WebSocket (STOMP)** — real-time multiplayer communication
 - **Spring Data JPA** — data persistence
 - **Spring Security** — CORS and basic security configuration
-- **Spotify Web API Java wrapper** — playlist import, track search, playback metadata
+- **Spotify Web API Java wrapper** — playlist import, track search, metadata
 - **H2** (dev) / **PostgreSQL** (prod)
 - **Gradle Kotlin DSL**
-- **Lombok**
 
 ### Frontend
 - **React 19**
@@ -38,10 +38,12 @@ A full-stack web application where players compete in real time to guess songs f
 - **React Router**
 - **Tailwind CSS**
 - **Spotify Web Playback SDK** — audio playback
+- **i18next** — English / Russian language switcher
 
 ### DevOps / Tools
 - **Docker** + **Docker Compose** (optional)
 - **Git / GitHub**
+- **GitHub Actions** CI
 - **IntelliJ IDEA**
 
 ---
@@ -80,7 +82,7 @@ com.guessmelody
 
 ### Prerequisites
 - JDK 17 or 21
-- Node.js 18+
+- Node.js 18+ (only if you run the frontend separately)
 - Spotify Developer account (free) — [create one here](https://developer.spotify.com/dashboard)
 - Docker (optional)
 
@@ -103,31 +105,23 @@ SERVER_PORT=8080
 
 > **Important:** Never commit the `.env` file. It is already listed in `.gitignore`.
 
-### 2. Run the Backend
+### 2. Run the Application
+
+The Gradle Node plugin downloads Node, installs dependencies, builds the React app, and copies it into `src/main/resources/static` automatically.
 
 ```bash
 ./gradlew bootRun
 ```
 
-Or on Windows:
+On Windows:
 
 ```bash
 gradlew.bat bootRun
 ```
 
-The backend will start on `http://localhost:8080`.
+Open `http://localhost:8080` in your browser.
 
-### 3. Run the Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-The frontend will start on `http://localhost:5173`.
-
-### 4. Access the H2 Console (dev only)
+### 3. Access the H2 Console (dev only)
 
 - URL: `http://localhost:8080/h2-console`
 - JDBC URL: `jdbc:h2:mem:guessmelodydb`
@@ -150,6 +144,45 @@ This starts:
 
 ---
 
+## 🎯 Scoring
+
+| Attempt | Track only | Artist only |
+|--------:|-----------:|------------:|
+| 1st     | 100        | 50          |
+| 2nd     | 80         | 40          |
+| 3rd     | 60         | 30          |
+| 4th     | 40         | 20          |
+| 5th     | 20         | 10          |
+| 6th     | 10         | 5           |
+
+- Guessing the track ends the round and awards the track score for that attempt.
+- Guessing only the artist gives half the track score and advances the attempt.
+- If you guess the artist first and the track later, the round total is the **better** of the two scores — you never get less than the artist-only score, and never more than the track-only score for the attempt on which the track was guessed.
+
+---
+
+## 📸 Screenshots
+
+### Home
+![Home](screenshots/home.png)
+
+### Import a Spotify Playlist
+![Import playlist](screenshots/import-playlist.png)
+
+### Solo Gameplay
+![Gameplay](screenshots/gameplay.png)
+
+### Track Search Autocomplete
+![Search](screenshots/search.png)
+
+### Track Reveal
+![Track reveal](screenshots/track-reveal.png)
+
+### Game Over
+![Game over](screenshots/game-over.png)
+
+---
+
 ## 🧪 Running Tests
 
 ```bash
@@ -158,21 +191,14 @@ This starts:
 
 ---
 
-## 📸 Screenshots
-
-*(Screenshots and a short demo GIF will be added here.)*
-
----
-
 ## 🛣️ Roadmap / Possible Improvements
 
 - [ ] Replace in-memory room state with Redis for horizontal scaling
-- [x] Replace `java.util.Timer` with `ScheduledExecutorService`
-- [x] Add unit and integration tests
-- [x] Add CI/CD pipeline with GitHub Actions
 - [ ] Deploy to AWS / Azure / Render
 - [ ] Add spectator mode and persistent game history
 - [ ] Add public/private room visibility
+- [ ] Add end-to-end tests with Playwright
+- [ ] Add global leaderboard
 
 ---
 
