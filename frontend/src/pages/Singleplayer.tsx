@@ -43,6 +43,8 @@ const containsTokensInOrder = (container: string[], target: string[]) => {
   return false;
 };
 
+const ARTIST_SEPARATORS = /,|\s&\s|\s[xX]\s|\sft\.|\sfeat\.|\s–\s|\s-\s|\/|–/;
+
 interface Attempt {
   text: string;
   type: 'skip' | 'wrong' | 'artist' | 'correct';
@@ -90,53 +92,6 @@ export default function Singleplayer() {
   useEffect(() => { pausedProgressMsRef.current = pausedProgressMs; }, [pausedProgressMs]);
 
 
-  useEffect(() => {
-    if (!isPlaying) return;
-    const interval = window.setInterval(async () => {
-      try {
-        const res = await fetch('/api/spotify/playback');
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.playing && typeof data.progressMs === 'number') {
-          const snippetDuration = SNIPPETS[Math.min(attemptsRef.current, SNIPPETS.length - 1)];
-
-
-          if (data.progressMs > snippetDuration + 200 && isPlayingRef.current) {
-            try {
-              await fetch('/api/spotify/pause', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ deviceId }),
-              });
-            } catch (e) {
-              console.error('Fallback pause error', e);
-            }
-            setIsPlaying(false);
-            isPlayingRef.current = false;
-            setPlayStartTime(null);
-            playStartTimeRef.current = null;
-            setPausedProgressMs(snippetDuration);
-            pausedProgressMsRef.current = snippetDuration;
-            setPlaybackProgressMs(snippetDuration);
-            setLastPlaybackUpdate(Date.now());
-            return;
-          }
-
-
-          setPlaybackProgressMs(prev => {
-            if (data.progressMs >= prev - 300) {
-              return data.progressMs;
-            }
-            return prev;
-          });
-          setLastPlaybackUpdate(Date.now());
-        }
-      } catch {
-        // ignore
-      }
-    }, 100);
-    return () => clearInterval(interval);
-  }, [isPlaying, deviceId]);
   useEffect(() => { isLoadingRef.current = isLoading; }, [isLoading]);
 
   useEffect(() => {
@@ -341,14 +296,15 @@ export default function Singleplayer() {
           } catch (e) {
             console.error('Auto-pause error', e);
           }
+          const snippetDuration = SNIPPETS[Math.min(attemptsRef.current, SNIPPETS.length - 1)];
           setIsPlaying(false);
           isPlayingRef.current = false;
           setPlayStartTime(null);
           playStartTimeRef.current = null;
           setPausedProgressMs(0);
-          setPlaybackProgressMs(0);
-          setLastPlaybackUpdate(Date.now());
           pausedProgressMsRef.current = 0;
+          setPlaybackProgressMs(snippetDuration);
+          setLastPlaybackUpdate(Date.now());
         }
       }, playDuration);
     } catch (e) {
@@ -376,11 +332,10 @@ export default function Singleplayer() {
       setPlayStartTime(null);
       playStartTimeRef.current = null;
       setPausedProgressMs(0);
+      pausedProgressMsRef.current = 0;
       setPlaybackProgressMs(0);
       setLastPlaybackUpdate(Date.now());
-      pausedProgressMsRef.current = 0;
       setFeedback(t('singleplayer.feedback.skipped', { track: currentTrack.name, artist: currentTrack.artistName }));
-      setAttemptHistory(prev => [...prev, { text: '', type: 'skip' }]);
       setRevealedTrack(currentTrack);
       setTimeout(() => {
         nextTrack();
@@ -408,8 +363,6 @@ export default function Singleplayer() {
     const nextAttempt = attemptsRef.current + 1;
     setAttempts(nextAttempt);
     attemptsRef.current = nextAttempt;
-
-    await playSnippet(undefined, false);
   };
 
   const handleGuess = async (guess: string) => {
@@ -417,10 +370,12 @@ export default function Singleplayer() {
 
     const guessTokens = tokenize(guess);
     const trackTokens = tokenize(normalizeTitle(currentTrack.name));
-    const artistTokens = tokenize(currentTrack.artistName);
 
     const trackMatch = containsTokensInOrder(guessTokens, trackTokens);
-    const artistMatch = containsTokensInOrder(guessTokens, artistTokens);
+
+    const artistMatch = currentTrack.artistName
+      .split(ARTIST_SEPARATORS)
+      .some(artist => containsTokensInOrder(guessTokens, tokenize(artist)));
 
     if (trackMatch) {
       const points = POINTS[Math.min(attemptsRef.current, POINTS.length - 1)];
