@@ -361,7 +361,58 @@ export default function Singleplayer() {
     }
   }, [deviceId, currentTrack]);
 
-  const handleGuess = (guess: string) => {
+  const advanceAttempt = async () => {
+    if (attemptsRef.current >= SNIPPETS.length - 1) {
+      clearTimeout(playTimeoutRef.current);
+      if (deviceId) {
+        await fetch('/api/spotify/pause', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deviceId }),
+        });
+      }
+      setIsPlaying(false);
+      isPlayingRef.current = false;
+      setPlayStartTime(null);
+      playStartTimeRef.current = null;
+      setPausedProgressMs(0);
+      setPlaybackProgressMs(0);
+      setLastPlaybackUpdate(Date.now());
+      pausedProgressMsRef.current = 0;
+      setFeedback(t('singleplayer.feedback.skipped', { track: currentTrack.name, artist: currentTrack.artistName }));
+      setAttemptHistory(prev => [...prev, { text: '', type: 'skip' }]);
+      setRevealedTrack(currentTrack);
+      setTimeout(() => {
+        nextTrack();
+      }, 3000);
+      return;
+    }
+
+    clearTimeout(playTimeoutRef.current);
+    if (deviceId && isPlayingRef.current) {
+      await fetch('/api/spotify/pause', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId }),
+      });
+    }
+    setIsPlaying(false);
+    isPlayingRef.current = false;
+    setPlayStartTime(null);
+    playStartTimeRef.current = null;
+    setPausedProgressMs(0);
+    pausedProgressMsRef.current = 0;
+    setPlaybackProgressMs(0);
+    setLastPlaybackUpdate(Date.now());
+
+    const nextAttempt = attemptsRef.current + 1;
+    setAttempts(nextAttempt);
+    attemptsRef.current = nextAttempt;
+
+    await playSnippet(undefined, false);
+  };
+
+  const handleGuess = async (guess: string) => {
     if (!currentTrack || gameOver || isLoadingRef.current) return;
 
     const guessTokens = tokenize(guess);
@@ -405,63 +456,18 @@ export default function Singleplayer() {
       setFeedback(t('singleplayer.feedback.artist', { points: halfPoints }));
       setAttemptHistory(prev => [...prev, { text: guess, type: 'artist' }]);
       setGuessInput('');
+      await advanceAttempt();
     } else {
       setFeedback(t('singleplayer.feedback.wrong'));
       setAttemptHistory(prev => [...prev, { text: guess, type: 'wrong' }]);
       setGuessInput('');
-      setTimeout(() => setFeedback(''), 1500);
+      await advanceAttempt();
     }
   };
 
   const skipAttempt = async () => {
-    if (attemptsRef.current >= SNIPPETS.length - 1) {
-      clearTimeout(playTimeoutRef.current);
-      if (deviceId) {
-        await fetch('/api/spotify/pause', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deviceId }),
-        });
-      }
-      setIsPlaying(false);
-      isPlayingRef.current = false;
-      setPlayStartTime(null);
-      playStartTimeRef.current = null;
-      setPausedProgressMs(0);
-      setPlaybackProgressMs(0);
-      setLastPlaybackUpdate(Date.now());
-      pausedProgressMsRef.current = 0;
-      setFeedback(t('singleplayer.feedback.skipped', { track: currentTrack.name, artist: currentTrack.artistName }));
-      setAttemptHistory(prev => [...prev, { text: '', type: 'skip' }]);
-      setRevealedTrack(currentTrack);
-      setTimeout(() => {
-        nextTrack();
-      }, 3000);
-      return;
-    }
-
-
-    clearTimeout(playTimeoutRef.current);
-    if (deviceId && isPlayingRef.current) {
-      fetch('/api/spotify/pause', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceId }),
-      });
-    }
-    setIsPlaying(false);
-    isPlayingRef.current = false;
-    setPlayStartTime(null);
-    playStartTimeRef.current = null;
-    setPausedProgressMs(0);
-    setPlaybackProgressMs(0);
-    setLastPlaybackUpdate(Date.now());
-    pausedProgressMsRef.current = 0;
-
     setAttemptHistory(prev => [...prev, { text: '', type: 'skip' }]);
-    const nextAttempt = attemptsRef.current + 1;
-    setAttempts(nextAttempt);
-    attemptsRef.current = nextAttempt;
+    await advanceAttempt();
   };
 
   const skipTrack = () => {

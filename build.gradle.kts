@@ -48,6 +48,13 @@ dependencies {
     testImplementation("org.glassfish.tyrus.bundles:tyrus-standalone-client:2.1.5")
 }
 
+tasks.processResources {
+    from("frontend/dist") {
+        into("static")
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
 tasks.withType<Test> {
     useJUnitPlatform()
 }
