@@ -10,7 +10,6 @@ interface Props {
   currentAttempt: number;
   artistName?: string;
   trackName?: string;
-  revealed?: boolean;
 }
 
 const TYPE_STYLES = {
@@ -20,7 +19,7 @@ const TYPE_STYLES = {
   correct: { bg: 'bg-brand-primary/20 border-brand-primary/30', text: 'text-brand-primary', labelKey: 'history.correct' },
 };
 
-export default function AttemptHistory({ attempts, currentAttempt, artistName, trackName, revealed }: Props) {
+export default function AttemptHistory({ attempts, currentAttempt, artistName, trackName }: Props) {
   const { t } = useTranslation();
   const totalSlots = 6;
 
@@ -55,14 +54,13 @@ export default function AttemptHistory({ attempts, currentAttempt, artistName, t
             {attempt && (
               <div className="flex flex-col items-center px-2">
                 <span>
-                  {attempt.type === 'skip' ? t('history.skip') : attempt.text}
+                  {attempt.type === 'skip'
+                    ? t('history.skip')
+                    : attempt.type === 'correct' && artistName && trackName
+                      ? `${artistName} — ${trackName}`
+                      : attempt.text}
                   {style?.labelKey && <span className="ml-2 text-xs opacity-70">{t(style.labelKey)}</span>}
                 </span>
-                {revealed && artistName && trackName && attempt.type !== 'skip' && (
-                  <span className="text-[10px] opacity-60 leading-tight text-center">
-                    {artistName} — {trackName}
-                  </span>
-                )}
               </div>
             )}
           </div>

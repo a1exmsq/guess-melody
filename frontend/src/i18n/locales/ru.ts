@@ -16,6 +16,7 @@ export default {
     loading: 'Загрузка...',
     error: 'Ошибка',
     success: 'Успех',
+    guess: 'Угадать',
   },
   language: {
     title: 'Язык',
@@ -52,6 +53,7 @@ export default {
       playFailed: '❌ Не удалось воспроизвести',
       correct: '✅ Правильно! +{{points}} очков',
       artist: '🎤 Исполнитель угадан! +{{points}} очков. Угадай название!',
+      artistAlreadyGuessed: '🎤 Исполнитель уже известен',
       wrong: '❌ Неправильно',
       skipped: 'Пропущено. Это был: {{track}} — {{artist}}',
     },

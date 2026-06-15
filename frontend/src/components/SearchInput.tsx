@@ -4,7 +4,7 @@ import { Search } from 'lucide-react';
 import type { Track } from '../types';
 
 interface Props {
-  onSelect: (value: string) => void;
+  onSelect: (track: Track) => void;
   placeholder?: string;
   value?: string;
   onValueChange?: (value: string) => void;
@@ -60,18 +60,23 @@ export default function SearchInput({ onSelect, placeholder, value, onValueChang
   };
 
   const handleSelect = (track: Track) => {
-    onSelect(track.name);
+    onSelect(track);
     clearInput();
     setShowResults(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (query.trim()) {
-      onSelect(query.trim());
-      clearInput();
-      setShowResults(false);
-    }
+    const trimmed = query.trim();
+    if (!trimmed) return;
+
+    const matched = results.find(
+      track => track.name.toLowerCase().trim() === trimmed.toLowerCase()
+    );
+
+    onSelect(matched || ({ name: trimmed, artistName: '' } as Track));
+    clearInput();
+    setShowResults(false);
   };
 
   return (

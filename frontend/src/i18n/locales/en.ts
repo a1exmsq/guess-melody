@@ -16,6 +16,7 @@ export default {
     loading: 'Loading...',
     error: 'Error',
     success: 'Success',
+    guess: 'Guess',
   },
   language: {
     title: 'Language',
@@ -52,6 +53,7 @@ export default {
       playFailed: '❌ Failed to play',
       correct: '✅ Correct! +{{points}} points',
       artist: '🎤 Artist guessed! +{{points}} points. Guess the title!',
+      artistAlreadyGuessed: '🎤 Artist already known',
       wrong: '❌ Wrong',
       skipped: 'Skipped. It was: {{track}} — {{artist}}',
     },

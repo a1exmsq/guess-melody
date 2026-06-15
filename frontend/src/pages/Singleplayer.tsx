@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Play, Pause, SkipForward } from 'lucide-react';
 import SpotifyPlayer from '../components/SpotifyPlayer';
 import SearchInput from '../components/SearchInput';
+
 import ProgressBar from '../components/ProgressBar';
 import VolumeSlider from '../components/VolumeSlider';
 import AttemptHistory from '../components/AttemptHistory';
@@ -42,7 +43,6 @@ const containsTokensInOrder = (container: string[], target: string[]) => {
   return false;
 };
 
-const ARTIST_SEPARATORS = /,|\s&\s|\s[xX]\s|\sft\.|\sfeat\.|\s–\s|\s-\s|\/|–/;
 
 interface Attempt {
   text: string;
@@ -64,12 +64,21 @@ export default function Singleplayer() {
 
 
   const attemptsRef = useRef(0);
+  const artistPointsAwardedRef = useRef(0);
   const isPlayingRef = useRef(false);
   const playStartTimeRef = useRef<number | null>(null);
   const pausedProgressMsRef = useRef(0);
   const isLoadingRef = useRef(false);
   const playTimeoutRef = useRef<number | undefined>(undefined);
   const safetyIntervalRef = useRef<number | undefined>(undefined);
+  const safetyPauseTimeoutsRef = useRef<number[]>([]);
+
+  const clearPlaybackTimers = () => {
+    clearTimeout(playTimeoutRef.current);
+    clearInterval(safetyIntervalRef.current);
+    safetyPauseTimeoutsRef.current.forEach(id => clearTimeout(id));
+    safetyPauseTimeoutsRef.current = [];
+  };
 
   const [feedback, setFeedback] = useState<string>('');
   const [playlistUrl, setPlaylistUrl] = useState('');
@@ -100,8 +109,7 @@ export default function Singleplayer() {
 
   useEffect(() => {
     return () => {
-      clearTimeout(playTimeoutRef.current);
-      clearInterval(safetyIntervalRef.current);
+      clearPlaybackTimers();
     };
   }, []);
 
@@ -149,6 +157,7 @@ export default function Singleplayer() {
     setAttempts(0);
     setScore(0);
     setArtistGuessed(false);
+    artistPointsAwardedRef.current = 0;
     setGameOver(false);
     setIsPlaying(false);
     setAttemptHistory([]);
@@ -168,8 +177,7 @@ export default function Singleplayer() {
   const currentTrack = tracks[currentTrackIndex];
 
   const nextTrack = useCallback(() => {
-    clearTimeout(playTimeoutRef.current);
-      clearInterval(safetyIntervalRef.current);
+    clearPlaybackTimers();
     if (deviceId) {
       fetch('/api/spotify/pause', {
         method: 'POST',
@@ -187,6 +195,7 @@ export default function Singleplayer() {
     setAttempts(0);
     setIsPlaying(false);
     setArtistGuessed(false);
+    artistPointsAwardedRef.current = 0;
     setAttemptHistory([]);
     setFeedback('');
     setGuessInput('');
@@ -207,8 +216,7 @@ export default function Singleplayer() {
     isLoadingRef.current = true;
     setIsLoading(true);
 
-    clearTimeout(playTimeoutRef.current);
-      clearInterval(safetyIntervalRef.current);
+    clearPlaybackTimers();
     playStartTimeRef.current = null;
 
     let savedProgress = 0;
@@ -293,8 +301,7 @@ export default function Singleplayer() {
       setPlaybackProgressMs(startFrom);
       setLastPlaybackUpdate(Date.now());
 
-      clearTimeout(playTimeoutRef.current);
-      clearInterval(safetyIntervalRef.current);
+      clearPlaybackTimers();
       playTimeoutRef.current = window.setTimeout(async () => {
         if (isPlayingRef.current) {
           try {
@@ -350,6 +357,19 @@ export default function Singleplayer() {
           // ignore
         }
       }, 500);
+
+      [500, 1000, 1500, 2000, 3000, 5000].forEach(delay => {
+        const id = window.setTimeout(() => {
+          if (deviceId) {
+            fetch('/api/spotify/pause', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ deviceId }),
+            }).catch(() => {});
+          }
+        }, playDuration + delay);
+        safetyPauseTimeoutsRef.current.push(id);
+      });
     } catch (e) {
       console.error('Play error', e);
       setFeedback(t('singleplayer.feedback.playFailed'));
@@ -362,8 +382,7 @@ export default function Singleplayer() {
 
   const advanceAttempt = async () => {
     if (attemptsRef.current >= SNIPPETS.length - 1) {
-      clearTimeout(playTimeoutRef.current);
-      clearInterval(safetyIntervalRef.current);
+      clearPlaybackTimers();
       if (deviceId) {
         await fetch('/api/spotify/pause', {
           method: 'POST',
@@ -387,8 +406,7 @@ export default function Singleplayer() {
       return;
     }
 
-    clearTimeout(playTimeoutRef.current);
-      clearInterval(safetyIntervalRef.current);
+    clearPlaybackTimers();
     if (deviceId && isPlayingRef.current) {
       await fetch('/api/spotify/pause', {
         method: 'POST',
@@ -410,29 +428,29 @@ export default function Singleplayer() {
     attemptsRef.current = nextAttempt;
   };
 
-  const handleGuess = async (guess: string) => {
+  const handleGuess = async (guessTrack: Track) => {
     if (!currentTrack || gameOver || isLoadingRef.current) return;
 
-    const guessTokens = tokenize(guess);
+    const guessText = guessTrack.name;
+    const guessArtist = guessTrack.artistName;
+    const guessTokens = tokenize(guessText);
     const trackTokens = tokenize(normalizeTitle(currentTrack.name));
 
     const trackMatch = containsTokensInOrder(guessTokens, trackTokens);
 
-    const normalizedGuessStr = normalizeString(guess);
-    const artistMatch = currentTrack.artistName
-      .split(ARTIST_SEPARATORS)
-      .some(artist => {
-        const normalizedArtist = normalizeString(artist);
-        if (normalizedArtist.length === 0) return false;
-        return containsTokensInOrder(guessTokens, tokenize(artist))
-          || (normalizedGuessStr.length >= 3 &&
-              (normalizedGuessStr.includes(normalizedArtist) || normalizedArtist.includes(normalizedGuessStr)));
-      });
+    const guessLower = guessText.toLowerCase().trim();
+    const artistLower = currentTrack.artistName.toLowerCase().trim();
+    const textArtistMatch = guessLower.length >= 2 && artistLower.includes(guessLower);
+    const selectedArtistMatch = guessArtist.length > 0 &&
+      guessArtist.toLowerCase().trim() === artistLower;
+    const artistMatch = textArtistMatch || selectedArtistMatch;
+
+    const basePoints = POINTS[Math.min(attemptsRef.current, POINTS.length - 1)];
 
     if (trackMatch) {
-      const points = POINTS[Math.min(attemptsRef.current, POINTS.length - 1)];
-      clearTimeout(playTimeoutRef.current);
-      clearInterval(safetyIntervalRef.current);
+      // Round score is the better of: track-only score for this attempt, or artist-only score already awarded.
+      const trackPoints = Math.max(0, basePoints - artistPointsAwardedRef.current);
+      clearPlaybackTimers();
       if (deviceId) {
         fetch('/api/spotify/pause', {
           method: 'POST',
@@ -440,7 +458,7 @@ export default function Singleplayer() {
           body: JSON.stringify({ deviceId }),
         });
       }
-      setScore(prev => prev + points);
+      setScore(prev => prev + trackPoints);
       setIsPlaying(false);
       isPlayingRef.current = false;
       setPlayStartTime(null);
@@ -449,25 +467,30 @@ export default function Singleplayer() {
       setPlaybackProgressMs(0);
       setLastPlaybackUpdate(Date.now());
       pausedProgressMsRef.current = 0;
-      setFeedback(t('singleplayer.feedback.correct', { points }));
-      setAttemptHistory(prev => [...prev, { text: guess, type: 'correct' }]);
+      setFeedback(t('singleplayer.feedback.correct', { points: trackPoints }));
+      setAttemptHistory(prev => [...prev, { text: guessText, type: 'correct' }]);
       setGuessInput('');
       setRevealedTrack(currentTrack);
 
       setTimeout(() => {
         nextTrack();
       }, 2500);
-    } else if (artistMatch && !artistGuessed) {
-      const halfPoints = Math.floor(POINTS[Math.min(attemptsRef.current, POINTS.length - 1)] / 2);
-      setScore(prev => prev + halfPoints);
-      setArtistGuessed(true);
-      setFeedback(t('singleplayer.feedback.artist', { points: halfPoints }));
-      setAttemptHistory(prev => [...prev, { text: guess, type: 'artist' }]);
+    } else if (artistMatch) {
+      if (!artistGuessed) {
+        const halfPoints = Math.floor(basePoints / 2);
+        artistPointsAwardedRef.current = halfPoints;
+        setScore(prev => prev + halfPoints);
+        setArtistGuessed(true);
+        setFeedback(t('singleplayer.feedback.artist', { points: halfPoints }));
+      } else {
+        setFeedback(t('singleplayer.feedback.artistAlreadyGuessed'));
+      }
+      setAttemptHistory(prev => [...prev, { text: guessText, type: 'artist' }]);
       setGuessInput('');
       await advanceAttempt();
     } else {
       setFeedback(t('singleplayer.feedback.wrong'));
-      setAttemptHistory(prev => [...prev, { text: guess, type: 'wrong' }]);
+      setAttemptHistory(prev => [...prev, { text: guessText, type: 'wrong' }]);
       setGuessInput('');
       await advanceAttempt();
     }
@@ -479,8 +502,7 @@ export default function Singleplayer() {
   };
 
   const skipTrack = () => {
-    clearTimeout(playTimeoutRef.current);
-      clearInterval(safetyIntervalRef.current);
+    clearPlaybackTimers();
     if (deviceId) {
       fetch('/api/spotify/pause', {
         method: 'POST',
@@ -504,8 +526,7 @@ export default function Singleplayer() {
 
     if (targetMs > snippetDuration - 200) {
       targetMs = snippetDuration;
-      clearTimeout(playTimeoutRef.current);
-      clearInterval(safetyIntervalRef.current);
+      clearPlaybackTimers();
       if (deviceId && isPlayingRef.current) {
         fetch('/api/spotify/pause', {
           method: 'POST',
@@ -524,8 +545,7 @@ export default function Singleplayer() {
       return;
     }
 
-    clearTimeout(playTimeoutRef.current);
-      clearInterval(safetyIntervalRef.current);
+    clearPlaybackTimers();
 
 
     if (deviceId && isPlayingRef.current) {
@@ -659,7 +679,6 @@ export default function Singleplayer() {
               currentAttempt={attempts}
               artistName={currentTrack.artistName}
               trackName={currentTrack.name}
-              revealed={!!revealedTrack}
             />
           </div>
 
