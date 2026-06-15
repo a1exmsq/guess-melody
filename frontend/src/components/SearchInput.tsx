@@ -73,7 +73,7 @@ export default function SearchInput({ onSelect, placeholder, value, onValueChang
   return (
     <div ref={containerRef} className="relative">
       <form onSubmit={handleSubmit} className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-muted" />
         <input
           type="text"
           value={query}
@@ -83,27 +83,27 @@ export default function SearchInput({ onSelect, placeholder, value, onValueChang
             setShowResults(true);
           }}
           placeholder={placeholder || t('search.placeholder')}
-          className="w-full bg-gray-800 border border-gray-700 rounded-xl py-3 pl-12 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-brand-primary transition-colors"
+          className="w-full bg-brand-surface/80 backdrop-blur-sm border border-brand-border/50 rounded-xl py-3 pl-12 pr-4 text-brand-text placeholder-brand-muted focus:outline-none focus:border-brand-primary transition-colors"
         />
       </form>
 
       {showResults && results.length > 0 && (
-        <div className="absolute z-50 w-full mt-2 bg-gray-800 rounded-xl overflow-hidden shadow-xl border border-gray-700">
-          <div className="px-4 py-2 text-xs text-gray-500 border-b border-gray-700">
+        <div className="absolute z-50 w-full mt-2 bg-brand-surface/80 backdrop-blur-sm rounded-xl overflow-hidden shadow-xl border border-brand-border/50">
+          <div className="px-4 py-2 text-xs text-brand-muted border-b border-brand-border/50">
             {t('search.found', { count: results.length })}
           </div>
           {results.map((track) => (
             <button
               key={track.spotifyTrackId}
               onClick={() => handleSelect(track)}
-              className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-700 transition-colors text-left"
+              className="w-full px-4 py-3 flex items-center gap-3 hover:bg-brand-surface transition-colors text-left"
             >
-              <div className="w-10 h-10 bg-gray-900 rounded flex items-center justify-center text-xs text-gray-500">
+              <div className="w-10 h-10 bg-brand-dark rounded flex items-center justify-center text-xs text-brand-muted">
                 🎵
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-medium truncate">{track.name}</div>
-                <div className="text-sm text-gray-500 truncate">{track.artistName}</div>
+                <div className="text-sm text-brand-muted truncate">{track.artistName}</div>
               </div>
             </button>
           ))}

@@ -12,9 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.util.List;
 
-/**
- * Game track pool backed by the database.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor

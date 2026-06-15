@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 const SNIPPETS = [500, 1000, 2000, 4000, 8000, 16000];
 const LABELS = ['0.5s', '1s', '2s', '4s', '8s', '16s'];
-const MAX_MS = SNIPPETS[SNIPPETS.length - 1]; // 16 000ms
+const MAX_MS = SNIPPETS[SNIPPETS.length - 1];
 
 interface Props {
   attempts: number;
@@ -67,18 +67,18 @@ export default function ProgressBar({ attempts, isPlaying, progressMs, lastPlayb
   return (
     <div className="w-full select-none">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs uppercase tracking-wider text-slate-400">{t('singleplayer.timelineTitle')}</span>
-        <span className="bg-indigo-500 text-white text-xs font-bold px-2 py-0.5 rounded">
+        <span className="text-xs uppercase tracking-wider text-brand-muted">{t('singleplayer.timelineTitle')}</span>
+        <span className="bg-brand-primary text-brand-text text-xs font-bold px-2 py-0.5 rounded">
           {LABELS[currentAttempt]}
         </span>
       </div>
 
       <div
-        className="relative h-4 bg-slate-900 rounded-full cursor-pointer border border-slate-700 shadow-inner overflow-hidden"
+        className="relative h-4 bg-brand-dark rounded-full cursor-pointer border border-brand-border/50 shadow-inner overflow-hidden"
         onClick={handleClick}
       >
         <div
-          className="absolute top-0 h-full bg-indigo-500/10"
+          className="absolute top-0 h-full bg-brand-primary/10"
           style={{ left: 0, width: `${currentMaxPct}%` }}
         />
         <div
@@ -86,7 +86,7 @@ export default function ProgressBar({ attempts, isPlaying, progressMs, lastPlayb
           style={{ width: `${displayProgress}%` }}
         />
         <div
-          className="absolute top-1/2 -translate-y-1/2 h-0.5 border-t-2 border-dashed border-slate-600"
+          className="absolute top-1/2 -translate-y-1/2 h-0.5 border-t-2 border-dashed border-brand-border"
           style={{ left: `${currentMaxPct}%`, width: `${100 - currentMaxPct}%` }}
         />
         {SNIPPETS.slice(0, -1).map((boundMs, i) => {
@@ -94,13 +94,13 @@ export default function ProgressBar({ attempts, isPlaying, progressMs, lastPlayb
           return (
             <div
               key={i}
-              className="absolute top-0 h-full w-0.5 bg-slate-600"
+              className="absolute top-0 h-full w-0.5 bg-brand-border"
               style={{ left: `${left}%` }}
             />
           );
         })}
         <div
-          className="absolute top-0 h-full w-1 bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)]"
+          className="absolute top-0 h-full w-1 bg-brand-text shadow-[0_0_10px_rgba(255,255,255,0.8)]"
           style={{ left: `${currentMaxPct}%` }}
         />
       </div>
@@ -112,7 +112,7 @@ export default function ProgressBar({ attempts, isPlaying, progressMs, lastPlayb
             <div
               key={i}
               className={`absolute -translate-x-1/2 text-[10px] font-mono ${
-                i === currentAttempt ? 'text-white font-bold' : i < currentAttempt ? 'text-indigo-300' : 'text-slate-600'
+                i === currentAttempt ? 'text-brand-text font-bold' : i < currentAttempt ? 'text-brand-primary' : 'text-brand-border'
               }`}
               style={{ left: `${left}%` }}
             >
@@ -123,8 +123,8 @@ export default function ProgressBar({ attempts, isPlaying, progressMs, lastPlayb
       </div>
 
       <div className="flex justify-between mt-1 text-xs font-mono">
-        <span className="text-slate-500">0:00.0</span>
-        <span className="text-indigo-300 font-bold">
+        <span className="text-brand-muted">0:00.0</span>
+        <span className="text-brand-primary font-bold">
           {formatTime(currentMs)} / {formatTime(MAX_MS)}
         </span>
       </div>

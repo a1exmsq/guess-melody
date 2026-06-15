@@ -9,9 +9,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * REST endpoints for playlist import and analytics.
- */
 @RestController
 @RequestMapping("/api/playlists")
 @RequiredArgsConstructor

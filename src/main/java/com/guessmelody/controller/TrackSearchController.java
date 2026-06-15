@@ -10,9 +10,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * REST endpoints for Spotify track search and the in-memory game track pool.
- */
 @RestController
 @RequestMapping("/api/tracks")
 @RequiredArgsConstructor

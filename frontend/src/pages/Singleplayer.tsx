@@ -13,6 +13,36 @@ import type { Track } from '../types';
 const SNIPPETS = [500, 1000, 2000, 4000, 8000, 16000];
 const POINTS = [100, 80, 60, 40, 20, 10];
 
+const normalizeTitle = (title: string) =>
+  title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s*\([^)]*\)/g, '')
+    .replace(/\s*\[[^\]]*\]/g, '')
+    .replace(/\s+-\s+.*$/, '')
+    .trim();
+
+const tokenize = (input: string) =>
+  input
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .split(/[^a-z0-9]+/)
+    .filter(t => t.length > 0);
+
+const containsTokensInOrder = (container: string[], target: string[]) => {
+  if (target.length === 0) return false;
+  let i = 0;
+  for (const token of container) {
+    if (token === target[i]) {
+      i++;
+      if (i === target.length) return true;
+    }
+  }
+  return false;
+};
+
 interface Attempt {
   text: string;
   type: 'skip' | 'wrong' | 'artist' | 'correct';
@@ -31,7 +61,7 @@ export default function Singleplayer() {
   const [gameOver, setGameOver] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // Refs for synchronous access (race-condition guard)
+
   const attemptsRef = useRef(0);
   const isPlayingRef = useRef(false);
   const playStartTimeRef = useRef<number | null>(null);
@@ -53,13 +83,13 @@ export default function Singleplayer() {
   const [isLoading, setIsLoading] = useState(false);
   const [revealedTrack, setRevealedTrack] = useState<Track | null>(null);
 
-  // Sync refs with state
+
   useEffect(() => { attemptsRef.current = attempts; }, [attempts]);
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
   useEffect(() => { playStartTimeRef.current = playStartTime; }, [playStartTime]);
   useEffect(() => { pausedProgressMsRef.current = pausedProgressMs; }, [pausedProgressMs]);
 
-  // Poll Spotify playback position for timeline accuracy
+
   useEffect(() => {
     if (!isPlaying) return;
     const interval = window.setInterval(async () => {
@@ -70,7 +100,7 @@ export default function Singleplayer() {
         if (data.playing && typeof data.progressMs === 'number') {
           const snippetDuration = SNIPPETS[Math.min(attemptsRef.current, SNIPPETS.length - 1)];
 
-          // Fallback: stop if we overshot the snippet boundary
+
           if (data.progressMs > snippetDuration + 200 && isPlayingRef.current) {
             try {
               await fetch('/api/spotify/pause', {
@@ -92,7 +122,7 @@ export default function Singleplayer() {
             return;
           }
 
-          // Smoothing: do not move the timeline backward because of SDK jitter
+
           setPlaybackProgressMs(prev => {
             if (data.progressMs >= prev - 300) {
               return data.progressMs;
@@ -150,7 +180,7 @@ export default function Singleplayer() {
       setFeedback(t('singleplayer.needPlaylist'));
       return;
     }
-    // Shuffle tracks before starting
+
     setTracks(prev => [...prev].sort(() => Math.random() - 0.5));
     setGameStarted(true);
     setCurrentTrackIndex(0);
@@ -258,7 +288,7 @@ export default function Singleplayer() {
     const playDuration = snippetDuration - startFrom;
 
     if (playDuration <= 0) {
-      // Clicked at the very end — just stop at this position
+
       isLoadingRef.current = false;
       setIsLoading(false);
       setIsPlaying(false);
@@ -334,17 +364,12 @@ export default function Singleplayer() {
   const handleGuess = (guess: string) => {
     if (!currentTrack || gameOver || isLoadingRef.current) return;
 
-    const normalizedGuess = guess.toLowerCase().trim();
-    const trackName = currentTrack.name.toLowerCase();
-    const artistName = currentTrack.artistName.toLowerCase();
+    const guessTokens = tokenize(guess);
+    const trackTokens = tokenize(normalizeTitle(currentTrack.name));
+    const artistTokens = tokenize(currentTrack.artistName);
 
-    const trackMatch = trackName === normalizedGuess ||
-      trackName.includes(normalizedGuess) ||
-      normalizedGuess.includes(trackName);
-
-    const artistMatch = artistName === normalizedGuess ||
-      artistName.includes(normalizedGuess) ||
-      normalizedGuess.includes(artistName);
+    const trackMatch = containsTokensInOrder(guessTokens, trackTokens);
+    const artistMatch = containsTokensInOrder(guessTokens, artistTokens);
 
     if (trackMatch) {
       const points = POINTS[Math.min(attemptsRef.current, POINTS.length - 1)];
@@ -415,7 +440,7 @@ export default function Singleplayer() {
       return;
     }
 
-    // Stop playback, do not auto-play the next snippet
+
     clearTimeout(playTimeoutRef.current);
     if (deviceId && isPlayingRef.current) {
       fetch('/api/spotify/pause', {
@@ -461,7 +486,7 @@ export default function Singleplayer() {
     const snippetDuration = SNIPPETS[Math.min(attemptsRef.current, SNIPPETS.length - 1)];
     let targetMs = Math.max(0, Math.min(positionMs, snippetDuration));
 
-    // If the user clicked within 200ms of the end, jump to the end and stop
+
     if (targetMs > snippetDuration - 200) {
       targetMs = snippetDuration;
       clearTimeout(playTimeoutRef.current);
@@ -485,7 +510,7 @@ export default function Singleplayer() {
 
     clearTimeout(playTimeoutRef.current);
 
-    // Stop current playback first
+
     if (deviceId && isPlayingRef.current) {
       try {
         await fetch('/api/spotify/pause', {
@@ -507,7 +532,7 @@ export default function Singleplayer() {
     setLastPlaybackUpdate(Date.now());
     pausedProgressMsRef.current = targetMs;
 
-    // Resume from the selected position
+
     await playSnippet(undefined, true);
   };
 
@@ -522,12 +547,12 @@ export default function Singleplayer() {
 
   if (gameOver) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-gray-950">
-        <h1 className="text-4xl font-bold mb-4 text-white">{t('singleplayer.gameOver.title')}</h1>
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-transparent">
+        <h1 className="text-4xl font-bold mb-4 text-brand-text">{t('singleplayer.gameOver.title')}</h1>
         <p className="text-2xl text-brand-primary mb-8 font-bold">{t('singleplayer.gameOver.score', { score })}</p>
         <button
           onClick={() => navigate('/')}
-          className="bg-brand-primary hover:bg-brand-secondary text-black font-bold py-3 px-8 rounded-full transition-colors"
+          className="bg-brand-primary hover:bg-brand-secondary font-semibold text-brand-text font-bold py-3 px-8 rounded-full transition-colors"
         >
           {t('singleplayer.gameOver.home')}
         </button>
@@ -536,16 +561,16 @@ export default function Singleplayer() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white px-4 py-4 max-w-xl mx-auto flex flex-col">
+    <div className="min-h-screen bg-transparent text-brand-text px-4 py-4 max-w-xl mx-auto flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <button onClick={() => navigate('/')} className="p-2 hover:bg-gray-800 rounded-full transition-colors">
+        <button onClick={() => navigate('/')} className="p-2 hover:bg-brand-surface/50 rounded-full transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <VolumeSlider deviceId={deviceId} />
         <div className="text-right">
           <div className="text-2xl font-bold text-brand-primary">{gameStarted ? score : 0}</div>
-          <div className="text-xs text-gray-500">{t('common.points')}</div>
+          <div className="text-xs text-brand-muted">{t('common.points')}</div>
         </div>
       </div>
 
@@ -553,9 +578,9 @@ export default function Singleplayer() {
 
       {!gameStarted && (
         <div className="mt-6 space-y-4 flex-1">
-          <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+          <div className="bg-brand-panel/80 backdrop-blur-sm rounded-2xl p-6 border border-brand-border/50">
             <h2 className="text-lg font-bold mb-2">{t('singleplayer.importPlaylist')}</h2>
-            <p className="text-gray-400 text-sm mb-4">
+            <p className="text-brand-muted text-sm mb-4">
               {t('singleplayer.importDesc')}
             </p>
             <div className="flex gap-3">
@@ -564,12 +589,12 @@ export default function Singleplayer() {
                 value={playlistUrl}
                 onChange={(e) => setPlaylistUrl(e.target.value)}
                 placeholder="https://open.spotify.com/playlist/..."
-                className="flex-1 bg-gray-800 border border-gray-700 rounded-xl py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:border-brand-primary"
+                className="flex-1 bg-brand-surface/80 backdrop-blur-sm border border-brand-border/50 rounded-xl py-3 px-4 text-brand-text placeholder-brand-muted focus:outline-none focus:border-brand-primary"
               />
               <button
                 onClick={importPlaylist}
                 disabled={importing || !playlistUrl.trim()}
-                className="bg-brand-primary hover:bg-brand-secondary disabled:opacity-50 text-black font-bold px-5 rounded-xl transition-colors"
+                className="bg-brand-primary hover:bg-brand-secondary disabled:opacity-50 font-semibold text-brand-text font-bold px-5 rounded-xl transition-colors"
               >
                 {importing ? '...' : t('common.import')}
               </button>
@@ -577,11 +602,11 @@ export default function Singleplayer() {
           </div>
 
           {tracks.length > 0 && (
-            <div className="bg-gray-900 rounded-2xl p-6 text-center border border-gray-800">
+            <div className="bg-brand-panel/80 backdrop-blur-sm rounded-2xl p-6 text-center border border-brand-border/50">
               <p className="text-lg font-medium">{t('singleplayer.tracksCount', { count: tracks.length })}</p>
               <button
                 onClick={startGame}
-                className="mt-4 bg-brand-primary hover:bg-brand-secondary text-black font-bold py-3 px-8 rounded-full transition-colors"
+                className="mt-4 bg-brand-primary hover:bg-brand-secondary font-semibold text-brand-text font-bold py-3 px-8 rounded-full transition-colors"
               >
                 <Play className="w-5 h-5 inline mr-2" />
                 {t('singleplayer.startGame')}
@@ -593,7 +618,7 @@ export default function Singleplayer() {
             <div className={`text-center py-3 rounded-xl ${
               feedback.startsWith('✅') ? 'bg-brand-primary/30 text-brand-primary border border-brand-primary/20' :
               feedback.startsWith('❌') ? 'bg-red-900/30 text-red-400 border border-red-500/20' :
-              'bg-gray-800'
+              'bg-brand-surface/80 backdrop-blur-sm'
             }`}>
               {feedback}
             </div>
@@ -605,8 +630,8 @@ export default function Singleplayer() {
         <div className="mt-4 flex-1 flex flex-col">
           {/* Track info */}
           <div className="flex justify-center gap-4 mb-4">
-            <div className="bg-gray-900 rounded-full px-4 py-1.5 text-sm border border-gray-800">
-              <span className="text-gray-400">{t('singleplayer.trackInfo', { current: currentTrackIndex + 1, total: tracks.length })}</span>
+            <div className="bg-brand-panel/80 backdrop-blur-sm rounded-full px-4 py-1.5 text-sm border border-brand-border/50">
+              <span className="text-brand-muted">{t('singleplayer.trackInfo', { current: currentTrackIndex + 1, total: tracks.length })}</span>
             </div>
           </div>
 
@@ -634,7 +659,7 @@ export default function Singleplayer() {
             <button
               onClick={togglePause}
               disabled={!deviceId || !playerReady || isLoading}
-              className="w-20 h-20 bg-gray-800 hover:bg-gray-700 disabled:opacity-30 rounded-full flex items-center justify-center transition-all hover:scale-105 border border-gray-700 shadow-lg shadow-black/50"
+              className="w-20 h-20 bg-brand-surface/80 backdrop-blur-sm hover:bg-brand-surface/70 disabled:opacity-30 rounded-full flex items-center justify-center transition-all hover:scale-105 border border-brand-border/50 shadow-lg shadow-black/50"
             >
               {isPlaying ? (
                 <Pause className="w-8 h-8 text-brand-primary" />
@@ -657,7 +682,7 @@ export default function Singleplayer() {
             <button
               onClick={skipAttempt}
               disabled={isLoading}
-              className="bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-300 font-medium px-4 rounded-xl flex items-center gap-2 transition-colors border border-gray-700"
+              className="bg-brand-surface/80 backdrop-blur-sm hover:bg-brand-surface/70 disabled:opacity-50 text-brand-text/90 font-medium px-4 rounded-xl flex items-center gap-2 transition-colors border border-brand-border/50"
             >
               <SkipForward className="w-4 h-4" />
               {t('common.skip')}
@@ -669,7 +694,7 @@ export default function Singleplayer() {
             <button
               onClick={skipTrack}
               disabled={isLoading}
-              className="text-sm text-gray-500 hover:text-gray-300 transition-colors"
+              className="text-sm text-brand-muted hover:text-brand-text/90 transition-colors"
             >
               {t('singleplayer.skipTrack')}
             </button>
@@ -681,7 +706,7 @@ export default function Singleplayer() {
               feedback.startsWith('✅') ? 'bg-brand-primary/30 text-brand-primary border border-brand-primary/20' :
               feedback.startsWith('🎤') ? 'bg-yellow-900/30 text-yellow-400 border border-yellow-500/20' :
               feedback.startsWith('❌') ? 'bg-red-900/30 text-red-400 border border-red-500/20' :
-              'bg-gray-800 text-gray-300'
+              'bg-brand-surface/80 backdrop-blur-sm text-brand-text/90'
             }`}>
               {feedback}
             </div>

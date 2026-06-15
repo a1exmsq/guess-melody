@@ -19,9 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * Playlist import and analytics backed by user Spotify OAuth.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor

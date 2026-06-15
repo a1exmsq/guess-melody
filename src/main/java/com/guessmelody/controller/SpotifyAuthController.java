@@ -8,16 +8,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
-/**
- * REST controller for Spotify OAuth login and token endpoints.
- *
- * Flow:
- * 1. GET /api/spotify/login      → returns the Spotify authorization URL
- * 2. User logs in on spotify.com
- * 3. Spotify redirects to /api/spotify/callback?code=...
- * 4. Backend exchanges the code for an access token
- * 5. The frontend can now import playlists and use the Web Playback SDK
- */
 @Slf4j
 @RestController
 @RequestMapping("/api/spotify")

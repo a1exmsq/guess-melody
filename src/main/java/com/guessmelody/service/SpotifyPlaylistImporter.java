@@ -26,10 +26,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Imports Spotify playlists using any authenticated SpotifyApi instance.
- * Works with both Client Credentials and user OAuth tokens.
- */
 @Slf4j
 @Component
 public class SpotifyPlaylistImporter {

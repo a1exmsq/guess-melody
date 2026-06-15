@@ -9,10 +9,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-/**
- * REST endpoints for Spotify categories and random playlist import.
- * Uses Client Credentials, so no user OAuth is required.
- */
 @Slf4j
 @RestController
 @RequestMapping("/api/spotify")

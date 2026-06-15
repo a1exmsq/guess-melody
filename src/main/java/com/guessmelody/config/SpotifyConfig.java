@@ -8,12 +8,6 @@ import se.michaelthelin.spotify.SpotifyHttpManager;
 
 import java.net.URI;
 
-/**
- * Configuration for the official Spotify Web API client.
- * Credentials are loaded from the .env file via spring-dotenv.
- *
- * Public playlists are accessed with the Client Credentials flow.
- */
 @Configuration
 public class SpotifyConfig {
 
@@ -23,8 +17,8 @@ public class SpotifyConfig {
     @Value("${spotify.client-secret}")
     private String clientSecret;
 
-    private static final URI REDIRECT_URI = SpotifyHttpManager
-            .makeUri("http://127.0.0.1:8080/api/spotify/callback");
+    @Value("${spotify.redirect-uri:http://127.0.0.1:8080/api/spotify/callback}")
+    private String redirectUri;
 
     @Bean
     public SpotifyApi spotifyApi() {
@@ -37,7 +31,7 @@ public class SpotifyConfig {
         return new SpotifyApi.Builder()
                 .setClientId(clientId)
                 .setClientSecret(clientSecret)
-                .setRedirectUri(REDIRECT_URI)
+                .setRedirectUri(SpotifyHttpManager.makeUri(redirectUri))
                 .build();
     }
 }

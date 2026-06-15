@@ -6,16 +6,13 @@ import lombok.Data;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * In-memory state of a game room.
- */
 @Data
 public class RoomState {
 
     public enum Status {
-        WAITING,   // Waiting for players
-        PLAYING,   // Game in progress
-        FINISHED   // Game finished
+        WAITING,
+        PLAYING,
+        FINISHED
     }
 
     private final String code;

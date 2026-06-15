@@ -5,9 +5,6 @@ import lombok.Data;
 
 import java.util.Map;
 
-/**
- * Analytics for an imported playlist.
- */
 @Data
 @Builder
 public class PlaylistAnalyticsResponse {

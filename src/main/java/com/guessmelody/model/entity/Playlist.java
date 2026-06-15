@@ -8,9 +8,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Imported Spotify playlist metadata.
- */
 @Entity
 @Table(name = "playlists")
 @Getter
@@ -30,7 +27,6 @@ public class Playlist {
     @Column(name = "name", nullable = false)
     private String name;
 
-    /** Cascade delete: removing a playlist also removes its tracks. */
     @OneToMany(mappedBy = "playlist", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     @com.fasterxml.jackson.annotation.JsonIgnore

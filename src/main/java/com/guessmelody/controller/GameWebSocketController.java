@@ -10,10 +10,6 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
-/**
- * WebSocket controller for the multiplayer game loop.
- * All messages are broadcast to /topic/room/{code}.
- */
 @Slf4j
 @Controller
 @RequiredArgsConstructor

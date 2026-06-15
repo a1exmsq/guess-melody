@@ -3,9 +3,6 @@ package com.guessmelody.dto.response;
 import lombok.Builder;
 import lombok.Data;
 
-/**
- * Track returned by the Spotify Search API.
- */
 @Data
 @Builder
 public class TrackSearchResult {

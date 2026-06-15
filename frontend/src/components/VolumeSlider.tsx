@@ -31,10 +31,10 @@ export default function VolumeSlider({ deviceId }: Props) {
 
   return (
     <div className="flex items-center gap-2">
-      <button onClick={toggleMute} className="p-1 hover:bg-gray-800 rounded-full transition-colors">
-        {isMuted ? <VolumeX className="w-5 h-5 text-gray-400" /> : <Volume2 className="w-5 h-5 text-brand-primary" />}
+      <button onClick={toggleMute} className="p-1 hover:bg-brand-surface rounded-full transition-colors">
+        {isMuted ? <VolumeX className="w-5 h-5 text-brand-muted" /> : <Volume2 className="w-5 h-5 text-brand-primary" />}
       </button>
-      <div className="relative w-24 h-1.5 bg-gray-800 rounded-full">
+      <div className="relative w-24 h-1.5 bg-brand-surface rounded-full">
         <div 
           className="absolute left-0 top-0 h-full bg-brand-primary rounded-full"
           style={{ width: `${volume}%` }}

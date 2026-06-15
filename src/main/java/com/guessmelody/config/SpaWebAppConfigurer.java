@@ -8,9 +8,6 @@ import org.springframework.web.servlet.resource.PathResourceResolver;
 
 import java.io.IOException;
 
-/**
- * Serves the React SPA: non-API/non-WebSocket paths fall back to index.html.
- */
 @Configuration
 public class SpaWebAppConfigurer implements WebMvcConfigurer {
 

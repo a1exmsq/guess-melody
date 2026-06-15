@@ -20,10 +20,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Game room and round management service.
- * State is kept in-memory.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -59,8 +55,6 @@ public class GameService {
             Thread.currentThread().interrupt();
         }
     }
-
-    // ===== Rooms =====
 
     public RoomState createRoom(String hostName) {
         String code = generateRoomCode();
@@ -138,8 +132,6 @@ public class GameService {
     public void removeRoom(String code) {
         rooms.remove(code.toUpperCase());
     }
-
-    // ===== Game =====
 
     public void startGame(String code, String playerName) {
         RoomState room = getRoomOrThrow(code);
@@ -328,8 +320,6 @@ public class GameService {
         log.info("Game in room {} finished. Winner: {}", code, winner);
     }
 
-    // ===== Round timer =====
-
     public void startRoundTimer(String code, int durationMs) {
         schedule(() -> {
             RoomState room = getRoom(code);
@@ -338,8 +328,6 @@ public class GameService {
             }
         }, durationMs);
     }
-
-    // ===== Helpers =====
 
     private Track pickRandomTrack(RoomState room) {
         List<Track> allTracks = room.getPlaylistTracks() != null && !room.getPlaylistTracks().isEmpty()
@@ -361,12 +349,39 @@ public class GameService {
 
     private boolean isCorrectGuess(String guess, Track track) {
         if (guess == null || guess.isBlank()) return false;
-        String g = guess.toLowerCase().trim();
-        String name = track.getName().toLowerCase();
-        String artist = track.getArtistName().toLowerCase();
+        List<String> guessTokens = tokenize(guess);
+        if (guessTokens.isEmpty()) return false;
 
-        return g.contains(name) || name.contains(g)
-                || g.contains(artist) || artist.contains(g);
+        List<String> nameTokens = tokenize(normalizeTitle(track.getName()));
+        List<String> artistTokens = tokenize(track.getArtistName());
+
+        return containsTokensInOrder(guessTokens, nameTokens)
+                || containsTokensInOrder(guessTokens, artistTokens);
+    }
+
+    private static String normalizeTitle(String title) {
+        return title.replaceAll("(?i)\\s*\\([^)]*\\)", "")
+                .replaceAll("(?i)\\s*\\[[^\\]]*\\]", "")
+                .replaceAll("(?i)\\s+-\\s+.*", "")
+                .trim();
+    }
+
+    private static List<String> tokenize(String input) {
+        return Arrays.stream(input.toLowerCase().split("[^a-z0-9]+"))
+                .filter(t -> !t.isBlank())
+                .toList();
+    }
+
+    private static boolean containsTokensInOrder(List<String> container, List<String> target) {
+        if (target.isEmpty()) return false;
+        int i = 0;
+        for (String token : container) {
+            if (token.equals(target.get(i))) {
+                i++;
+                if (i == target.size()) return true;
+            }
+        }
+        return false;
     }
 
     private RoomState getRoomOrThrow(String code) {

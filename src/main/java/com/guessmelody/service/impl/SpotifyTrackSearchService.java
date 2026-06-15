@@ -24,9 +24,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Spotify Web API track search implementation.
- */
 @Slf4j
 @Service
 public class SpotifyTrackSearchService implements TrackSearchService {
@@ -123,7 +120,6 @@ public class SpotifyTrackSearchService implements TrackSearchService {
                 ClientCredentialsRequest request = spotifyApi.clientCredentials().build();
                 ClientCredentials credentials = request.execute();
                 spotifyApi.setAccessToken(credentials.getAccessToken());
-                // Refresh a minute before the token actually expires.
                 tokenExpiresAt = now + (credentials.getExpiresIn() - 60) * 1000L;
                 log.info("Obtained Spotify access token for search, expires in {}s", credentials.getExpiresIn());
             }

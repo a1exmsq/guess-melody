@@ -86,7 +86,7 @@ com.guessmelody
 
 ### 1. Spotify Credentials
 
-Create an app in the Spotify Developer Dashboard and add `http://localhost:5173/callback` to the allowed redirect URIs.
+Create an app in the Spotify Developer Dashboard and add `http://127.0.0.1:8080/api/spotify/callback` to the allowed redirect URIs.
 
 Copy the example environment file and fill in your credentials:
 
@@ -97,6 +97,7 @@ cp .env.example .env
 ```env
 SPOTIFY_CLIENT_ID=your_spotify_client_id
 SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
+SPOTIFY_REDIRECT_URI=http://127.0.0.1:8080/api/spotify/callback
 SERVER_PORT=8080
 ```
 
@@ -168,10 +169,8 @@ This starts:
 - [ ] Replace in-memory room state with Redis for horizontal scaling
 - [x] Replace `java.util.Timer` with `ScheduledExecutorService`
 - [x] Add unit and integration tests
-- [ ] Add CI/CD pipeline with GitHub Actions
+- [x] Add CI/CD pipeline with GitHub Actions
 - [ ] Deploy to AWS / Azure / Render
-- [ ] Add CI/CD pipeline with GitHub Actions
-- [ ] Deploy to AWS / Azure
 - [ ] Add spectator mode and persistent game history
 - [ ] Add public/private room visibility
 

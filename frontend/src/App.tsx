@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import BackgroundShapes from './components/BackgroundShapes';
 import Home from './pages/Home';
 import Singleplayer from './pages/Singleplayer';
 import MultiplayerLobby from './pages/MultiplayerLobby';
@@ -7,7 +8,8 @@ import Room from './pages/Room';
 function App() {
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-brand-dark text-white">
+      <div className="min-h-screen bg-brand-dark text-brand-text relative">
+        <BackgroundShapes />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/singleplayer" element={<Singleplayer />} />

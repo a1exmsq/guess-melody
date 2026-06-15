@@ -11,8 +11,8 @@ interface Props {
 }
 
 const TYPE_STYLES = {
-  skip: { bg: 'bg-gray-800/50', text: 'text-gray-400', labelKey: 'history.skip' },
-  wrong: { bg: 'bg-gray-800/50', text: 'text-gray-300', labelKey: null },
+  skip: { bg: 'bg-brand-surface/60', text: 'text-brand-muted', labelKey: 'history.skip' },
+  wrong: { bg: 'bg-brand-surface/60', text: 'text-brand-text/80', labelKey: null },
   artist: { bg: 'bg-yellow-900/20 border-yellow-500/30', text: 'text-yellow-400', labelKey: 'history.artist' },
   correct: { bg: 'bg-brand-primary/20 border-brand-primary/30', text: 'text-brand-primary', labelKey: 'history.correct' },
 };
@@ -29,7 +29,7 @@ export default function AttemptHistory({ attempts, currentAttempt }: Props) {
         
         if (!attempt && !isCurrent) {
           return (
-            <div key={i} className="h-12 bg-gray-800/30 rounded-xl" />
+            <div key={i} className="h-12 bg-brand-surface/40 rounded-xl" />
           );
         }
         
@@ -40,14 +40,14 @@ export default function AttemptHistory({ attempts, currentAttempt }: Props) {
             key={i}
             className={`h-12 rounded-xl flex items-center justify-center text-sm font-medium transition-all ${
               isCurrent 
-                ? 'bg-gray-800 border-2 border-brand-primary text-white' 
+                ? 'bg-brand-surface/80 backdrop-blur-sm border-2 border-brand-primary text-brand-text' 
                 : style 
                   ? `${style.bg} ${style.text} border ${attempt.type === 'artist' || attempt.type === 'correct' ? 'border-opacity-30' : 'border-transparent'}`
-                  : 'bg-gray-800/30'
+                  : 'bg-brand-surface/40'
             }`}
           >
             {isCurrent && !attempt && (
-              <span className="text-gray-500 animate-pulse">...</span>
+              <span className="text-brand-muted animate-pulse">...</span>
             )}
             {attempt && (
               <span className={isCurrent ? '' : ''}>

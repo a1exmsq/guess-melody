@@ -82,10 +82,10 @@ export default function SpotifyPlayer({ onDeviceId, onReady }: Props) {
 
   return (
     <div className={`flex items-center gap-3 rounded-xl p-4 border ${
-      isReady ? 'bg-green-900/20 border-green-500/30' : 'bg-gray-800 border-gray-700'
+      isReady ? 'bg-green-900/20 border-green-500/30' : 'bg-brand-surface/80 backdrop-blur-sm border-brand-border/50'
     }`}>
-      <Volume2 className={`w-5 h-5 ${isReady ? 'text-green-400' : 'text-gray-500'}`} />
-      <span className={`text-sm ${isReady ? 'text-green-400' : 'text-gray-500'}`}>
+      <Volume2 className={`w-5 h-5 ${isReady ? 'text-green-400' : 'text-brand-muted'}`} />
+      <span className={`text-sm ${isReady ? 'text-green-400' : 'text-brand-muted'}`}>
         {isReady ? t('player.ready') : t('player.connecting')}
       </span>
     </div>

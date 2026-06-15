@@ -17,9 +17,6 @@ import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * Imports random playlists from Spotify categories using Client Credentials.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -63,7 +60,6 @@ public class SpotifyCategoryService {
             throw new IllegalStateException("No playlists found in category: " + categoryId);
         }
 
-        // Skip the first two playlists — they are usually "Made for You" style slots.
         int index = random.nextInt(Math.max(1, playlists.size() - 2)) + 2;
         if (index >= playlists.size()) index = 0;
 

@@ -14,11 +14,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * Security configuration.
- * CSRF is disabled (stateless API / WebSocket usage).
- * CORS origins are configured via the CORS_ALLOWED_ORIGINS environment variable / property.
- */
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {

@@ -10,9 +10,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-/**
- * REST endpoints for creating and inspecting game rooms.
- */
 @RestController
 @RequestMapping("/api/rooms")
 @RequiredArgsConstructor

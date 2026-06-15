@@ -11,9 +11,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * REST controller for Spotify Web Playback SDK operations.
- */
 @Slf4j
 @RestController
 @RequestMapping("/api/spotify")

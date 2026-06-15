@@ -3,9 +3,6 @@ package com.guessmelody.model.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-/**
- * Persisted player metadata for a room.
- */
 @Entity
 @Table(name = "players")
 @Getter
@@ -19,7 +16,6 @@ public class Player {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** WebSocket session id of the player. */
     @Column(name = "session_id", nullable = false)
     private String sessionId;
 

@@ -3,12 +3,6 @@ package com.guessmelody.model.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-/**
- * Spotify track metadata stored for the game.
- *
- * Note: title and artist are not exposed to the frontend directly — they are
- * revealed only after the round ends to prevent cheating.
- */
 @Entity
 @Table(name = "tracks")
 @Getter
@@ -40,11 +34,9 @@ public class Track {
     @Column(name = "image_url", length = 512)
     private String imageUrl;
 
-    /** Comma-separated artist genres used for playlist analytics, e.g. "rock,pop,indie". */
     @Column(name = "genres", length = 1024)
     private String genres;
 
-    /** True when the artist or title contains Cyrillic characters. */
     @Column(name = "is_russian")
     private Boolean isRussian;
 

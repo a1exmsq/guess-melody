@@ -3,14 +3,6 @@ package com.guessmelody.util;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Extracts a Spotify playlist id from URLs, URIs, or raw ids.
- *
- * Supported formats:
- * - https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M
- * - spotify:playlist:37i9dQZF1DXcBWIGoYBM5M
- * - 37i9dQZF1DXcBWIGoYBM5M
- */
 public final class SpotifyUrlParser {
 
     private static final Pattern WEB_URL_PATTERN = Pattern.compile(
@@ -26,7 +18,6 @@ public final class SpotifyUrlParser {
     );
 
     private SpotifyUrlParser() {
-        // Utility class
     }
 
     public static String extractPlaylistId(String input) {
@@ -48,6 +39,22 @@ public final class SpotifyUrlParser {
         Matcher webMatcher = WEB_URL_PATTERN.matcher(trimmed);
         if (webMatcher.find()) {
             return webMatcher.group(1);
+        }
+
+        if (trimmed.contains("spotify.com/album/")) {
+            throw new IllegalArgumentException(
+                    "Album links are not supported. Please paste a Spotify playlist link."
+            );
+        }
+        if (trimmed.contains("spotify.com/track/")) {
+            throw new IllegalArgumentException(
+                    "Single track links are not supported. Please paste a Spotify playlist link."
+            );
+        }
+        if (trimmed.contains("spotify.com/artist/")) {
+            throw new IllegalArgumentException(
+                    "Artist links are not supported. Please paste a Spotify playlist link."
+            );
         }
 
         throw new IllegalArgumentException(

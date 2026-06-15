@@ -12,10 +12,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
-/**
- * Backend service for controlling Spotify playback through the Spotify Web API.
- * Used together with the Web Playback SDK (play/pause/seek/volume).
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -113,8 +109,6 @@ public class SpotifyPlayerService {
             return null;
         }
     }
-
-    // ===== Internal helpers =====
 
     private String requireToken() {
         String token;

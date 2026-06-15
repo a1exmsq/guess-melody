@@ -50,7 +50,7 @@ export default function MultiplayerLobby() {
   return (
     <div className="min-h-screen flex flex-col px-4 py-6 max-w-md mx-auto">
       <div className="flex items-center gap-4 mb-8">
-        <button onClick={() => navigate('/')} className="p-2 hover:bg-brand-surface rounded-full">
+        <button onClick={() => navigate('/')} className="p-2 hover:bg-brand-surface/80 rounded-full">
           <ArrowLeft className="w-6 h-6" />
         </button>
         <h1 className="text-2xl font-bold">{t('multiplayer.title')}</h1>
@@ -63,14 +63,14 @@ export default function MultiplayerLobby() {
           value={nickname}
           onChange={(e) => setNickname(e.target.value)}
           placeholder={t('multiplayer.nicknamePlaceholder')}
-          className="w-full bg-brand-panel border border-brand-surface rounded-xl py-3 px-4 text-white placeholder-brand-muted focus:outline-none focus:border-brand-primary"
+          className="w-full bg-brand-panel/80 backdrop-blur-sm border border-brand-border/50 rounded-xl py-3 px-4 text-brand-text placeholder-brand-muted focus:outline-none focus:border-brand-primary"
         />
       </div>
 
       <div className="space-y-4">
         <button
           onClick={createRoom}
-          className="w-full bg-brand-primary hover:bg-brand-secondary text-black font-bold py-4 rounded-xl flex items-center justify-center gap-3 transition-colors"
+          className="w-full bg-brand-primary hover:bg-brand-secondary font-semibold text-brand-text font-bold py-4 rounded-xl flex items-center justify-center gap-3 transition-colors"
         >
           <Plus className="w-5 h-5" />
           {t('multiplayer.createRoom')}
@@ -78,10 +78,10 @@ export default function MultiplayerLobby() {
 
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-brand-surface"></div>
+            <div className="w-full border-t border-brand-border/50"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-brand-dark text-brand-muted">{t('multiplayer.or')}</span>
+            <span className="px-2 bg-transparent text-brand-muted">{t('multiplayer.or')}</span>
           </div>
         </div>
 
@@ -91,11 +91,11 @@ export default function MultiplayerLobby() {
             value={roomCode}
             onChange={(e) => setRoomCode(e.target.value)}
             placeholder={t('multiplayer.roomCodePlaceholder')}
-            className="flex-1 bg-brand-panel border border-brand-surface rounded-xl py-3 px-4 text-white placeholder-brand-muted focus:outline-none focus:border-brand-primary uppercase"
+            className="flex-1 bg-brand-panel/80 backdrop-blur-sm border border-brand-border/50 rounded-xl py-3 px-4 text-brand-text placeholder-brand-muted focus:outline-none focus:border-brand-primary uppercase"
           />
           <button
             onClick={joinRoom}
-            className="bg-brand-surface hover:bg-brand-border px-6 rounded-xl flex items-center gap-2 transition-colors"
+            className="bg-brand-surface/80 backdrop-blur-sm hover:bg-brand-border px-6 rounded-xl flex items-center gap-2 transition-colors"
           >
             <DoorOpen className="w-5 h-5" />
             {t('multiplayer.joinRoom')}

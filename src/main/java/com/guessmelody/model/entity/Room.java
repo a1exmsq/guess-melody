@@ -9,9 +9,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Persisted game room metadata.
- */
 @Entity
 @Table(name = "rooms")
 @Getter
@@ -25,7 +22,6 @@ public class Room {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** Short join code, e.g. "XZ81A". */
     @Column(name = "code", nullable = false, unique = true, length = 10)
     private String code;
 
@@ -41,7 +37,6 @@ public class Room {
     @JoinColumn(name = "playlist_id")
     private Playlist playlist;
 
-    /** WebSocket session id of the host. */
     @Column(name = "host_session_id", nullable = false)
     private String hostSessionId;
 

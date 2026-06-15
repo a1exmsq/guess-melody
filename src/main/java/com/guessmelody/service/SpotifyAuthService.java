@@ -11,11 +11,6 @@ import se.michaelthelin.spotify.model_objects.specification.User;
 
 import java.net.URI;
 
-/**
- * Manages Spotify OAuth login flow and the authenticated user's API instance.
- *
- * Flow: login URL → callback → access token → user API for playlist import.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor

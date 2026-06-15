@@ -2,11 +2,6 @@ package com.guessmelody.util;
 
 import java.security.SecureRandom;
 
-/**
- * Generates short, human-readable room codes such as "K3P9M".
- *
- * Uses SecureRandom so codes are unpredictable.
- */
 public final class RoomCodeGenerator {
 
     private static final String ALPHANUMERIC = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -14,7 +9,6 @@ public final class RoomCodeGenerator {
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private RoomCodeGenerator() {
-        // Utility class
     }
 
     public static String generate() {
