@@ -13,8 +13,8 @@ import type { Track } from '../types';
 const SNIPPETS = [500, 1000, 2000, 4000, 8000, 16000];
 const POINTS = [100, 80, 60, 40, 20, 10];
 
-const normalizeTitle = (title: string) =>
-  title
+const normalizeString = (input: string) =>
+  input
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -23,11 +23,10 @@ const normalizeTitle = (title: string) =>
     .replace(/\s+-\s+.*$/, '')
     .trim();
 
+const normalizeTitle = (title: string) => normalizeString(title);
+
 const tokenize = (input: string) =>
-  input
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+  normalizeString(input)
     .split(/[^a-z0-9]+/)
     .filter(t => t.length > 0);
 
@@ -70,6 +69,7 @@ export default function Singleplayer() {
   const pausedProgressMsRef = useRef(0);
   const isLoadingRef = useRef(false);
   const playTimeoutRef = useRef<number | undefined>(undefined);
+  const safetyIntervalRef = useRef<number | undefined>(undefined);
 
   const [feedback, setFeedback] = useState<string>('');
   const [playlistUrl, setPlaylistUrl] = useState('');
@@ -96,6 +96,13 @@ export default function Singleplayer() {
 
   useEffect(() => {
     loadTracks();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      clearTimeout(playTimeoutRef.current);
+      clearInterval(safetyIntervalRef.current);
+    };
   }, []);
 
   const loadTracks = () => {
@@ -162,6 +169,7 @@ export default function Singleplayer() {
 
   const nextTrack = useCallback(() => {
     clearTimeout(playTimeoutRef.current);
+      clearInterval(safetyIntervalRef.current);
     if (deviceId) {
       fetch('/api/spotify/pause', {
         method: 'POST',
@@ -200,6 +208,7 @@ export default function Singleplayer() {
     setIsLoading(true);
 
     clearTimeout(playTimeoutRef.current);
+      clearInterval(safetyIntervalRef.current);
     playStartTimeRef.current = null;
 
     let savedProgress = 0;
@@ -285,6 +294,7 @@ export default function Singleplayer() {
       setLastPlaybackUpdate(Date.now());
 
       clearTimeout(playTimeoutRef.current);
+      clearInterval(safetyIntervalRef.current);
       playTimeoutRef.current = window.setTimeout(async () => {
         if (isPlayingRef.current) {
           try {
@@ -305,8 +315,41 @@ export default function Singleplayer() {
           pausedProgressMsRef.current = 0;
           setPlaybackProgressMs(snippetDuration);
           setLastPlaybackUpdate(Date.now());
+          clearInterval(safetyIntervalRef.current);
         }
       }, playDuration);
+
+      const snippetDuration = SNIPPETS[Math.min(attempt, SNIPPETS.length - 1)];
+      const startTime = Date.now();
+      safetyIntervalRef.current = window.setInterval(async () => {
+        if (Date.now() - startTime > snippetDuration + 3000) {
+          clearInterval(safetyIntervalRef.current);
+          return;
+        }
+        try {
+          const res = await fetch('/api/spotify/playback');
+          if (!res.ok) return;
+          const data = await res.json();
+          if (data.playing && typeof data.progressMs === 'number' && data.progressMs > snippetDuration + 300) {
+            await fetch('/api/spotify/pause', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ deviceId }),
+            });
+            setIsPlaying(false);
+            isPlayingRef.current = false;
+            setPlayStartTime(null);
+            playStartTimeRef.current = null;
+            setPausedProgressMs(0);
+            pausedProgressMsRef.current = 0;
+            setPlaybackProgressMs(snippetDuration);
+            setLastPlaybackUpdate(Date.now());
+            clearInterval(safetyIntervalRef.current);
+          }
+        } catch {
+          // ignore
+        }
+      }, 500);
     } catch (e) {
       console.error('Play error', e);
       setFeedback(t('singleplayer.feedback.playFailed'));
@@ -320,6 +363,7 @@ export default function Singleplayer() {
   const advanceAttempt = async () => {
     if (attemptsRef.current >= SNIPPETS.length - 1) {
       clearTimeout(playTimeoutRef.current);
+      clearInterval(safetyIntervalRef.current);
       if (deviceId) {
         await fetch('/api/spotify/pause', {
           method: 'POST',
@@ -344,6 +388,7 @@ export default function Singleplayer() {
     }
 
     clearTimeout(playTimeoutRef.current);
+      clearInterval(safetyIntervalRef.current);
     if (deviceId && isPlayingRef.current) {
       await fetch('/api/spotify/pause', {
         method: 'POST',
@@ -373,13 +418,21 @@ export default function Singleplayer() {
 
     const trackMatch = containsTokensInOrder(guessTokens, trackTokens);
 
+    const normalizedGuessStr = normalizeString(guess);
     const artistMatch = currentTrack.artistName
       .split(ARTIST_SEPARATORS)
-      .some(artist => containsTokensInOrder(guessTokens, tokenize(artist)));
+      .some(artist => {
+        const normalizedArtist = normalizeString(artist);
+        if (normalizedArtist.length === 0) return false;
+        return containsTokensInOrder(guessTokens, tokenize(artist))
+          || (normalizedGuessStr.length >= 3 &&
+              (normalizedGuessStr.includes(normalizedArtist) || normalizedArtist.includes(normalizedGuessStr)));
+      });
 
     if (trackMatch) {
       const points = POINTS[Math.min(attemptsRef.current, POINTS.length - 1)];
       clearTimeout(playTimeoutRef.current);
+      clearInterval(safetyIntervalRef.current);
       if (deviceId) {
         fetch('/api/spotify/pause', {
           method: 'POST',
@@ -427,6 +480,7 @@ export default function Singleplayer() {
 
   const skipTrack = () => {
     clearTimeout(playTimeoutRef.current);
+      clearInterval(safetyIntervalRef.current);
     if (deviceId) {
       fetch('/api/spotify/pause', {
         method: 'POST',
@@ -451,6 +505,7 @@ export default function Singleplayer() {
     if (targetMs > snippetDuration - 200) {
       targetMs = snippetDuration;
       clearTimeout(playTimeoutRef.current);
+      clearInterval(safetyIntervalRef.current);
       if (deviceId && isPlayingRef.current) {
         fetch('/api/spotify/pause', {
           method: 'POST',
@@ -470,6 +525,7 @@ export default function Singleplayer() {
     }
 
     clearTimeout(playTimeoutRef.current);
+      clearInterval(safetyIntervalRef.current);
 
 
     if (deviceId && isPlayingRef.current) {
@@ -601,6 +657,9 @@ export default function Singleplayer() {
             <AttemptHistory
               attempts={attemptHistory}
               currentAttempt={attempts}
+              artistName={currentTrack.artistName}
+              trackName={currentTrack.name}
+              revealed={!!revealedTrack}
             />
           </div>
 

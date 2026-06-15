@@ -54,11 +54,14 @@ export default function SearchInput({ onSelect, placeholder, value, onValueChang
     return () => document.removeEventListener('click', handleClick);
   }, []);
 
+  const clearInput = () => {
+    setQuery('');
+    onValueChange?.('');
+  };
+
   const handleSelect = (track: Track) => {
     onSelect(track.name);
-    const newVal = track.name;
-    setQuery(newVal);
-    onValueChange?.(newVal);
+    clearInput();
     setShowResults(false);
   };
 
@@ -66,6 +69,7 @@ export default function SearchInput({ onSelect, placeholder, value, onValueChang
     e.preventDefault();
     if (query.trim()) {
       onSelect(query.trim());
+      clearInput();
       setShowResults(false);
     }
   };
