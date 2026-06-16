@@ -4,6 +4,8 @@ import com.guessmelody.dto.request.PlaylistImportRequest;
 import com.guessmelody.dto.request.TrackListImportRequest;
 import com.guessmelody.dto.response.PlaylistAnalyticsResponse;
 import com.guessmelody.dto.response.PlaylistImportResponse;
+import com.guessmelody.dto.response.TrackSearchResult;
+import com.guessmelody.model.entity.Track;
 import com.guessmelody.exception.SpotifyApiException;
 import com.guessmelody.service.PlaylistService;
 import com.guessmelody.service.SpotifyAuthService;
@@ -95,11 +97,33 @@ public class PlaylistRestController {
                     map.put("artistName", t.getArtistName());
                     map.put("allArtistNames", t.getAllArtistNames() != null ? t.getAllArtistNames() : "");
                     map.put("previewUrl", t.getPreviewUrl() != null ? t.getPreviewUrl() : "");
+                    map.put("imageUrl", t.getImageUrl() != null ? t.getImageUrl() : "");
                     map.put("durationMs", t.getDurationMs());
                     return map;
                 })
                 .toList();
         return ResponseEntity.ok(tracks);
+    }
+
+    @PostMapping("/{id}/tracks")
+    public ResponseEntity<?> addTrackToPlaylist(@PathVariable Long id, @RequestBody TrackSearchResult track) {
+        Track saved = playlistService.addTrackToPlaylist(id, track);
+        java.util.Map<String, Object> map = new java.util.HashMap<>();
+        map.put("id", saved.getId());
+        map.put("spotifyTrackId", saved.getSpotifyTrackId());
+        map.put("name", saved.getName());
+        map.put("artistName", saved.getArtistName());
+        map.put("allArtistNames", saved.getAllArtistNames() != null ? saved.getAllArtistNames() : "");
+        map.put("previewUrl", saved.getPreviewUrl() != null ? saved.getPreviewUrl() : "");
+        map.put("imageUrl", saved.getImageUrl() != null ? saved.getImageUrl() : "");
+        map.put("durationMs", saved.getDurationMs());
+        return ResponseEntity.ok(map);
+    }
+
+    @DeleteMapping("/{id}/tracks")
+    public ResponseEntity<Void> clearPlaylistTracks(@PathVariable Long id) {
+        playlistService.clearPlaylistTracks(id);
+        return ResponseEntity.ok().build();
     }
 
     @ExceptionHandler(SpotifyApiException.class)

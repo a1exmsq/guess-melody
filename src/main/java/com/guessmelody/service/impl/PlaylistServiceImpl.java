@@ -2,6 +2,7 @@ package com.guessmelody.service.impl;
 
 import com.guessmelody.dto.response.PlaylistAnalyticsResponse;
 import com.guessmelody.dto.response.PlaylistImportResponse;
+import com.guessmelody.dto.response.TrackSearchResult;
 import com.guessmelody.dto.response.TrackSummaryResponse;
 import com.guessmelody.exception.PlaylistNotFoundException;
 import com.guessmelody.exception.SpotifyApiException;
@@ -129,6 +130,36 @@ public class PlaylistServiceImpl implements PlaylistService {
     public Playlist findById(Long id) {
         return playlistRepository.findById(id)
                 .orElseThrow(() -> new PlaylistNotFoundException(String.valueOf(id)));
+    }
+
+    @Override
+    @Transactional
+    public Track addTrackToPlaylist(Long playlistId, TrackSearchResult searchResult) {
+        Playlist playlist = playlistRepository.findById(playlistId)
+                .orElseThrow(() -> new PlaylistNotFoundException(String.valueOf(playlistId)));
+
+        Track track = trackRepository.findBySpotifyTrackId(searchResult.getSpotifyTrackId())
+                .orElseGet(() -> Track.builder()
+                        .spotifyTrackId(searchResult.getSpotifyTrackId())
+                        .name(searchResult.getName())
+                        .artistName(searchResult.getArtistName())
+                        .allArtistNames(searchResult.getAllArtistNames())
+                        .durationMs(searchResult.getDurationMs())
+                        .previewUrl(searchResult.getPreviewUrl())
+                        .build());
+
+        track.setPlaylist(playlist);
+        return trackRepository.save(track);
+    }
+
+    @Override
+    @Transactional
+    public void clearPlaylistTracks(Long playlistId) {
+        Playlist playlist = playlistRepository.findById(playlistId)
+                .orElseThrow(() -> new PlaylistNotFoundException(String.valueOf(playlistId)));
+
+        playlist.getTracks().clear();
+        playlistRepository.save(playlist);
     }
 
     private PlaylistImportResponse mapToImportResponse(Playlist playlist) {

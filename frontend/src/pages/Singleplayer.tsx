@@ -102,6 +102,10 @@ export default function Singleplayer() {
   const [guessInput, setGuessInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [revealedTrack, setRevealedTrack] = useState<Track | null>(null);
+  const [currentPlaylistId, setCurrentPlaylistId] = useState<number | null>(() => {
+    const stored = localStorage.getItem('singleplayerPlaylistId');
+    return stored ? Number(stored) : null;
+  });
 
 
   useEffect(() => { attemptsRef.current = attempts; }, [attempts]);
@@ -122,15 +126,33 @@ export default function Singleplayer() {
     };
   }, []);
 
-  const loadTracks = () => {
-    fetch('/api/tracks/pool')
+  useEffect(() => {
+    if (currentPlaylistId != null) {
+      localStorage.setItem('singleplayerPlaylistId', String(currentPlaylistId));
+    } else {
+      localStorage.removeItem('singleplayerPlaylistId');
+    }
+  }, [currentPlaylistId]);
+
+  const loadTracks = (playlistId?: number | null) => {
+    const id = playlistId !== undefined ? playlistId : currentPlaylistId;
+    if (id == null) {
+      fetch('/api/tracks/pool')
+        .then(r => r.json())
+        .then(data => setTracks(data));
+      return;
+    }
+    fetch(`/api/playlists/${id}/tracks`)
       .then(r => r.json())
       .then(data => setTracks(data));
   };
 
   const addTrackToPool = async (track: Track) => {
+    const url = currentPlaylistId != null
+      ? `/api/playlists/${currentPlaylistId}/tracks`
+      : '/api/tracks/pool';
     try {
-      const res = await fetch('/api/tracks/pool', {
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(track),
@@ -148,8 +170,11 @@ export default function Singleplayer() {
   };
 
   const clearPool = async () => {
+    const url = currentPlaylistId != null
+      ? `/api/playlists/${currentPlaylistId}/tracks`
+      : '/api/tracks/pool';
     try {
-      await fetch('/api/tracks/pool', { method: 'DELETE' });
+      await fetch(url, { method: 'DELETE' });
       loadTracks();
     } catch {
       // ignore
@@ -172,8 +197,9 @@ export default function Singleplayer() {
         return;
       }
       const data = await res.json();
+      setCurrentPlaylistId(data.id);
       setFeedback(t('singleplayer.feedback.importSuccess', { name: data.name, count: data.trackCount }));
-      loadTracks();
+      loadTracks(data.id);
       setPlaylistUrl('');
     } catch {
       setFeedback(t('singleplayer.feedback.importError'));
@@ -204,8 +230,9 @@ export default function Singleplayer() {
         return;
       }
       const data = await res.json();
+      setCurrentPlaylistId(data.id);
       setFeedback(t('singleplayer.feedback.importTracksSuccess', { count: data.trackCount }));
-      loadTracks();
+      loadTracks(data.id);
       setTrackListInput('');
     } catch {
       setFeedback(t('singleplayer.feedback.importError'));
