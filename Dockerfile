@@ -11,6 +11,7 @@ RUN apt-get update \
 
 COPY . .
 RUN chmod +x ./gradlew
+RUN cd frontend && npm ci
 RUN ./gradlew bootJar --no-daemon
 
 # Runtime stage
