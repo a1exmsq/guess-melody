@@ -42,7 +42,7 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> {
-                auth.requestMatchers("/api/spotify/callback").permitAll();
+                auth.requestMatchers("/api/spotify/callback", "/api/spotify/login", "/api/spotify/status").permitAll();
                 auth.requestMatchers("/ws/**", "/topic/**", "/app/**").permitAll();
                 auth.requestMatchers("/h2-console/**").permitAll();
                 if (passwordEnabled) {
