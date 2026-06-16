@@ -1,23 +1,19 @@
 import { Volume2, VolumeX } from 'lucide-react';
-import { useState } from 'react';
+import { spotifyApi } from '../lib/spotifyApi';
 
 interface Props {
   deviceId: string | null;
+  volume: number;
+  onVolumeChange: (volume: number) => void;
 }
 
-export default function VolumeSlider({ deviceId }: Props) {
-  const [volume, setVolume] = useState(50);
-  const [isMuted, setIsMuted] = useState(false);
+export default function VolumeSlider({ deviceId, volume, onVolumeChange }: Props) {
+  const isMuted = volume === 0;
 
   const handleChange = (v: number) => {
-    setVolume(v);
-    setIsMuted(v === 0);
+    onVolumeChange(v);
     if (deviceId) {
-      fetch('/api/spotify/volume', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceId, volume: v }),
-      }).catch(() => {});
+      spotifyApi.volume(deviceId, v).catch(() => {});
     }
   };
 
@@ -35,7 +31,7 @@ export default function VolumeSlider({ deviceId }: Props) {
         {isMuted ? <VolumeX className="w-5 h-5 text-brand-muted" /> : <Volume2 className="w-5 h-5 text-brand-primary" />}
       </button>
       <div className="relative w-24 h-1.5 bg-brand-surface rounded-full">
-        <div 
+        <div
           className="absolute left-0 top-0 h-full bg-brand-primary rounded-full"
           style={{ width: `${volume}%` }}
         />

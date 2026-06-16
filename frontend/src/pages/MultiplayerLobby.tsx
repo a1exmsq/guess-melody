@@ -1,25 +1,62 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Plus, DoorOpen } from 'lucide-react';
+import { ArrowLeft, Plus, DoorOpen, Music } from 'lucide-react';
 
 export default function MultiplayerLobby() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [roomCode, setRoomCode] = useState('');
   const [nickname, setNickname] = useState('');
+  const [playlistUrl, setPlaylistUrl] = useState('');
+  const [importing, setImporting] = useState(false);
   const [error, setError] = useState('');
+
+  const importPlaylist = async (): Promise<number | null> => {
+    const trimmed = playlistUrl.trim();
+    if (!trimmed) return null;
+
+    const res = await fetch('/api/playlists/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: trimmed }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || t('singleplayer.feedback.importError'));
+    }
+
+    const data = await res.json();
+    return data.id as number;
+  };
 
   const createRoom = async () => {
     if (!nickname.trim()) {
       setError(t('multiplayer.errors.emptyNickname'));
       return;
     }
+
+    setImporting(true);
+    setError('');
+
     try {
+      let playlistId: number | null = null;
+      if (playlistUrl.trim()) {
+        playlistId = await importPlaylist();
+      }
+
+      const body: { playerName: string; playlistId?: number } = {
+        playerName: nickname.trim(),
+      };
+      if (playlistId != null) {
+        body.playlistId = playlistId;
+      }
+
       const res = await fetch('/api/rooms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerName: nickname.trim() }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const err = await res.text();
@@ -30,8 +67,10 @@ export default function MultiplayerLobby() {
       if (data.code) {
         navigate(`/room/${data.code}?nickname=${encodeURIComponent(nickname.trim())}`);
       }
-    } catch {
-      setError(t('multiplayer.errors.createFailed'));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('multiplayer.errors.createFailed'));
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -56,8 +95,8 @@ export default function MultiplayerLobby() {
         <h1 className="text-2xl font-bold">{t('multiplayer.title')}</h1>
       </div>
 
-      <div className="space-y-4 mb-8">
-        <label className="block text-sm text-brand-muted mb-2">{t('multiplayer.nickname')}</label>
+      <div className="space-y-4 mb-6">
+        <label className="block text-sm text-brand-muted">{t('multiplayer.nickname')}</label>
         <input
           type="text"
           value={nickname}
@@ -67,13 +106,29 @@ export default function MultiplayerLobby() {
         />
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-4 mb-8">
+        <div className="bg-brand-panel/80 backdrop-blur-sm rounded-2xl p-6 border border-brand-border/50">
+          <h2 className="text-lg font-bold mb-2 flex items-center gap-2">
+            <Music className="w-5 h-5" />
+            {t('multiplayer.importPlaylist')}
+          </h2>
+          <p className="text-brand-muted text-sm mb-4">{t('multiplayer.importDesc')}</p>
+          <input
+            type="text"
+            value={playlistUrl}
+            onChange={(e) => setPlaylistUrl(e.target.value)}
+            placeholder="https://open.spotify.com/playlist/..."
+            className="w-full bg-brand-surface/80 backdrop-blur-sm border border-brand-border/50 rounded-xl py-3 px-4 text-brand-text placeholder-brand-muted focus:outline-none focus:border-brand-primary"
+          />
+        </div>
+
         <button
           onClick={createRoom}
-          className="w-full bg-brand-primary hover:bg-brand-secondary font-semibold text-brand-text font-bold py-4 rounded-xl flex items-center justify-center gap-3 transition-colors"
+          disabled={importing || !nickname.trim()}
+          className="w-full bg-brand-primary hover:bg-brand-secondary disabled:opacity-50 font-semibold text-brand-text font-bold py-4 rounded-xl flex items-center justify-center gap-3 transition-colors"
         >
           <Plus className="w-5 h-5" />
-          {t('multiplayer.createRoom')}
+          {importing ? t('common.loading') : t('multiplayer.createRoom')}
         </button>
 
         <div className="relative">

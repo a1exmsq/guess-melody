@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Volume2, AlertCircle } from 'lucide-react';
+import { getSpotifyToken } from '../lib/spotifyApi';
 
 interface Props {
   onDeviceId: (id: string) => void;
@@ -11,20 +12,20 @@ export default function SpotifyPlayer({ onDeviceId, onReady }: Props) {
   const { t } = useTranslation();
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState('');
+  const initializedRef = useRef(false);
 
   useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://sdk.scdn.co/spotify-player.js';
-    script.async = true;
-    document.body.appendChild(script);
+    if (initializedRef.current) return;
+    initializedRef.current = true;
 
-    window.onSpotifyWebPlaybackSDKReady = () => {
+    const initPlayer = () => {
+      if (!window.Spotify) return;
+
       const player = new window.Spotify.Player({
         name: 'Guess Melody Web Player',
         getOAuthToken: (cb: (token: string) => void) => {
-          fetch('/api/spotify/token')
-            .then(r => r.json())
-            .then(data => cb(data.token))
+          getSpotifyToken()
+            .then((token) => cb(token))
             .catch(() => setError(t('player.tokenError')));
         },
         volume: 0.5,
@@ -43,8 +44,8 @@ export default function SpotifyPlayer({ onDeviceId, onReady }: Props) {
         onReady?.(false);
       });
 
-      player.addListener('initialization_error', ({ message: _msg }: { message: string }) => {
-        setError(_msg);
+      player.addListener('initialization_error', ({ message }: { message: string }) => {
+        setError(message);
       });
 
       player.addListener('authentication_error', () => {
@@ -55,13 +56,33 @@ export default function SpotifyPlayer({ onDeviceId, onReady }: Props) {
         setError(t('player.premiumRequired'));
       });
 
-      player.connect();
+      player.connect().catch((e: unknown) => {
+        console.error('Spotify player connect error', e);
+      });
     };
 
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, [onDeviceId, onReady]);
+    const existingScript = document.getElementById('spotify-player-script');
+    if (existingScript) {
+      if (window.Spotify) {
+        initPlayer();
+      } else if (window.onSpotifyWebPlaybackSDKReady) {
+        const original = window.onSpotifyWebPlaybackSDKReady;
+        window.onSpotifyWebPlaybackSDKReady = () => {
+          original();
+          initPlayer();
+        };
+      }
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.id = 'spotify-player-script';
+    script.src = 'https://sdk.scdn.co/spotify-player.js';
+    script.async = true;
+    document.body.appendChild(script);
+
+    window.onSpotifyWebPlaybackSDKReady = initPlayer;
+  }, [onDeviceId, onReady, t]);
 
   if (error) {
     return (
@@ -69,8 +90,8 @@ export default function SpotifyPlayer({ onDeviceId, onReady }: Props) {
         <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
         <div>
           <p className="text-red-400 font-medium">{error}</p>
-          <a 
-            href="/api/spotify/login" 
+          <a
+            href="/api/spotify/login"
             className="text-sm text-brand-primary hover:underline mt-1 inline-block"
           >
             {t('player.login')}
@@ -81,9 +102,13 @@ export default function SpotifyPlayer({ onDeviceId, onReady }: Props) {
   }
 
   return (
-    <div className={`flex items-center gap-3 rounded-xl p-4 border ${
-      isReady ? 'bg-green-900/20 border-green-500/30' : 'bg-brand-surface/80 backdrop-blur-sm border-brand-border/50'
-    }`}>
+    <div
+      className={`flex items-center gap-3 rounded-xl p-4 border ${
+        isReady
+          ? 'bg-green-900/20 border-green-500/30'
+          : 'bg-brand-surface/80 backdrop-blur-sm border-brand-border/50'
+      }`}
+    >
       <Volume2 className={`w-5 h-5 ${isReady ? 'text-green-400' : 'text-brand-muted'}`} />
       <span className={`text-sm ${isReady ? 'text-green-400' : 'text-brand-muted'}`}>
         {isReady ? t('player.ready') : t('player.connecting')}

@@ -1,0 +1,48 @@
+services:
+  - type: web
+    name: guess-melody
+    env: docker
+    plan: free
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: SERVER_PORT
+        value: 8080
+      - key: PGHOST
+        fromDatabase:
+          name: guess-melody-db
+          property: host
+      - key: PGPORT
+        fromDatabase:
+          name: guess-melody-db
+          property: port
+      - key: PGDATABASE
+        fromDatabase:
+          name: guess-melody-db
+          property: database
+      - key: PGUSER
+        fromDatabase:
+          name: guess-melody-db
+          property: user
+      - key: PGPASSWORD
+        fromDatabase:
+          name: guess-melody-db
+          property: password
+      - key: SPOTIFY_CLIENT_ID
+        sync: false
+      - key: SPOTIFY_CLIENT_SECRET
+        sync: false
+      - key: SPOTIFY_REDIRECT_URI
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: SITE_AUTH_USER
+        sync: false
+      - key: SITE_AUTH_PASSWORD
+        sync: false
+
+databases:
+  - name: guess-melody-db
+    plan: free
+    databaseName: guessmelody
+    user: guessmelody

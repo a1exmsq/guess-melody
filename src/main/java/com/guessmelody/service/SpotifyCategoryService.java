@@ -22,7 +22,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SpotifyCategoryService {
 
-    private final SpotifyApi spotifyApi;
     private final SpotifyPlaylistImporter playlistImporter;
     private final PlaylistRepository playlistRepository;
     private final SecureRandom random = new SecureRandom();
@@ -32,8 +31,8 @@ public class SpotifyCategoryService {
             "mood", "party", "workout", "focus", "decades"
     );
 
-    public List<Category> getCategories() throws Exception {
-        Paging<Category> categories = spotifyApi.getListOfCategories()
+    public List<Category> getCategories(SpotifyApi api) throws Exception {
+        Paging<Category> categories = api.getListOfCategories()
                 .country(CountryCode.PL)
                 .limit(20)
                 .build()
@@ -41,8 +40,8 @@ public class SpotifyCategoryService {
         return Arrays.asList(categories.getItems());
     }
 
-    public List<PlaylistSimplified> getCategoryPlaylists(String categoryId) throws Exception {
-        Paging<PlaylistSimplified> playlists = spotifyApi.getCategorysPlaylists(categoryId)
+    public List<PlaylistSimplified> getCategoryPlaylists(SpotifyApi api, String categoryId) throws Exception {
+        Paging<PlaylistSimplified> playlists = api.getCategorysPlaylists(categoryId)
                 .country(CountryCode.PL)
                 .limit(20)
                 .build()
@@ -51,11 +50,11 @@ public class SpotifyCategoryService {
     }
 
     @Transactional
-    public Playlist importRandomPlaylist() throws Exception {
+    public Playlist importRandomPlaylist(SpotifyApi api) throws Exception {
         String categoryId = DEFAULT_CATEGORIES.get(random.nextInt(DEFAULT_CATEGORIES.size()));
         log.info("Picking a random playlist from category: {}", categoryId);
 
-        List<PlaylistSimplified> playlists = getCategoryPlaylists(categoryId);
+        List<PlaylistSimplified> playlists = getCategoryPlaylists(api, categoryId);
         if (playlists.isEmpty()) {
             throw new IllegalStateException("No playlists found in category: " + categoryId);
         }
@@ -73,7 +72,7 @@ public class SpotifyCategoryService {
             return existing.get();
         }
 
-        Playlist playlist = playlistImporter.importPlaylist(spotifyApi, playlistId);
+        Playlist playlist = playlistImporter.importPlaylist(api, playlistId);
 
         playlist.getTracks().forEach(track -> track.setPlaylist(playlist));
         Playlist saved = playlistRepository.save(playlist);

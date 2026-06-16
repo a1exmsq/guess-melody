@@ -4,17 +4,19 @@ import com.guessmelody.dto.response.PlaylistAnalyticsResponse;
 import com.guessmelody.dto.response.PlaylistImportResponse;
 import com.guessmelody.dto.response.TrackSummaryResponse;
 import com.guessmelody.exception.PlaylistNotFoundException;
+import com.guessmelody.exception.SpotifyApiException;
 import com.guessmelody.model.entity.Playlist;
 import com.guessmelody.model.entity.Track;
 import com.guessmelody.repository.PlaylistRepository;
+import com.guessmelody.repository.TrackRepository;
 import com.guessmelody.service.PlaylistService;
-import com.guessmelody.service.SpotifyAuthService;
 import com.guessmelody.service.SpotifyPlaylistImporter;
 import com.guessmelody.util.SpotifyUrlParser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import se.michaelthelin.spotify.SpotifyApi;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -24,15 +26,15 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PlaylistServiceImpl implements PlaylistService {
 
-    private final SpotifyAuthService authService;
     private final SpotifyPlaylistImporter importer;
     private final PlaylistRepository playlistRepository;
+    private final TrackRepository trackRepository;
 
     @Override
     @Transactional
-    public PlaylistImportResponse importFromUrl(String url) {
+    public PlaylistImportResponse importFromUrl(String url, SpotifyApi api) {
         String playlistId = SpotifyUrlParser.extractPlaylistId(url);
-        log.info("Importing playlist {} (OAuth: {})", playlistId, authService.isAuthorized());
+        log.info("Importing playlist {} with user-provided Spotify API", playlistId);
 
         var existing = playlistRepository.findBySpotifyPlaylistId(playlistId);
         if (existing.isPresent()) {
@@ -40,14 +42,42 @@ public class PlaylistServiceImpl implements PlaylistService {
             return mapToImportResponse(existing.get());
         }
 
-        var userApi = authService.requireUserApi();
-        Playlist playlist = importer.importPlaylist(userApi, playlistId);
+        Playlist playlist = importer.importPlaylist(api, playlistId);
 
         playlist.getTracks().forEach(track -> track.setPlaylist(playlist));
 
         Playlist saved = playlistRepository.save(playlist);
         log.info("Saved playlist '{}' with {} tracks", saved.getName(), saved.getTracks().size());
 
+        return mapToImportResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public PlaylistImportResponse importFromTrackUrls(List<String> trackUrls, String name, SpotifyApi api) {
+        if (trackUrls == null || trackUrls.isEmpty()) {
+            throw new IllegalArgumentException("No track links provided");
+        }
+
+        String playlistName = name != null && !name.isBlank() ? name.trim() : "Imported Tracks";
+        Playlist playlist = importer.importFromTrackUrls(api, trackUrls, playlistName);
+
+        Set<String> existingIds = trackRepository.findAll().stream()
+                .map(Track::getSpotifyTrackId)
+                .collect(Collectors.toSet());
+
+        List<Track> uniqueTracks = playlist.getTracks().stream()
+                .filter(t -> !existingIds.contains(t.getSpotifyTrackId()))
+                .peek(t -> t.setPlaylist(playlist))
+                .collect(Collectors.toList());
+
+        if (uniqueTracks.isEmpty()) {
+            throw new SpotifyApiException("All provided tracks are already in the pool or could not be fetched.");
+        }
+
+        playlist.setTracks(uniqueTracks);
+        Playlist saved = playlistRepository.save(playlist);
+        log.info("Saved manual playlist '{}' with {} tracks", saved.getName(), saved.getTracks().size());
         return mapToImportResponse(saved);
     }
 

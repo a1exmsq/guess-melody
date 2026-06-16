@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Play, Pause, SkipForward } from 'lucide-react';
+import { ArrowLeft, Play, Pause, SkipForward, Trash2 } from 'lucide-react';
 import SpotifyPlayer from '../components/SpotifyPlayer';
 import SearchInput from '../components/SearchInput';
+import { spotifyApi } from '../lib/spotifyApi';
 
 import ProgressBar from '../components/ProgressBar';
 import VolumeSlider from '../components/VolumeSlider';
@@ -54,6 +55,7 @@ export default function Singleplayer() {
   const { t } = useTranslation();
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [playerReady, setPlayerReady] = useState(false);
+  const [volume, setVolume] = useState(50);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [attempts, setAttempts] = useState(0);
@@ -72,17 +74,24 @@ export default function Singleplayer() {
   const playTimeoutRef = useRef<number | undefined>(undefined);
   const safetyIntervalRef = useRef<number | undefined>(undefined);
   const safetyPauseTimeoutsRef = useRef<number[]>([]);
+  const preloadedTrackIdRef = useRef<string | null>(null);
+  const preloadTimeoutRef = useRef<number | undefined>(undefined);
+  const preloadingRef = useRef(false);
 
   const clearPlaybackTimers = () => {
     clearTimeout(playTimeoutRef.current);
     clearInterval(safetyIntervalRef.current);
     safetyPauseTimeoutsRef.current.forEach(id => clearTimeout(id));
     safetyPauseTimeoutsRef.current = [];
+    clearTimeout(preloadTimeoutRef.current);
+    preloadingRef.current = false;
   };
 
   const [feedback, setFeedback] = useState<string>('');
   const [playlistUrl, setPlaylistUrl] = useState('');
   const [importing, setImporting] = useState(false);
+  const [trackListInput, setTrackListInput] = useState('');
+  const [importingTracks, setImportingTracks] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
   const [playStartTime, setPlayStartTime] = useState<number | null>(null);
   const [pausedProgressMs, setPausedProgressMs] = useState(0);
@@ -119,6 +128,34 @@ export default function Singleplayer() {
       .then(data => setTracks(data));
   };
 
+  const addTrackToPool = async (track: Track) => {
+    try {
+      const res = await fetch('/api/tracks/pool', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(track),
+      });
+      if (res.ok) {
+        loadTracks();
+        setFeedback(t('singleplayer.feedback.trackAdded'));
+      } else {
+        setFeedback(t('singleplayer.feedback.trackAddError'));
+      }
+    } catch {
+      setFeedback(t('singleplayer.feedback.trackAddError'));
+    }
+    setTimeout(() => setFeedback(''), 2000);
+  };
+
+  const clearPool = async () => {
+    try {
+      await fetch('/api/tracks/pool', { method: 'DELETE' });
+      loadTracks();
+    } catch {
+      // ignore
+    }
+  };
+
   const importPlaylist = async () => {
     if (!playlistUrl.trim()) return;
     setImporting(true);
@@ -145,6 +182,52 @@ export default function Singleplayer() {
     setTimeout(() => setFeedback(''), 3000);
   };
 
+  const importTrackList = async () => {
+    const lines = trackListInput.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) {
+      setFeedback(t('singleplayer.feedback.importTracksEmpty'));
+      setTimeout(() => setFeedback(''), 3000);
+      return;
+    }
+    setImportingTracks(true);
+    try {
+      const res = await fetch('/api/playlists/import-tracks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: t('singleplayer.importTracksDefaultName'), trackUrls: lines }),
+      });
+      if (!res.ok) {
+        const err = await res.text();
+        setFeedback(err || t('singleplayer.feedback.importErrorResponse'));
+        setImportingTracks(false);
+        setTimeout(() => setFeedback(''), 3000);
+        return;
+      }
+      const data = await res.json();
+      setFeedback(t('singleplayer.feedback.importTracksSuccess', { count: data.trackCount }));
+      loadTracks();
+      setTrackListInput('');
+    } catch {
+      setFeedback(t('singleplayer.feedback.importError'));
+    }
+    setImportingTracks(false);
+    setTimeout(() => setFeedback(''), 3000);
+  };
+
+  const bookmarkletCode = encodeURIComponent(
+    "javascript:(function(){" +
+    "const ids=new Set();" +
+    "document.querySelectorAll('a[href*=\\'/track/\\']').forEach(a=>{" +
+    "const m=a.href.match(/track\\/([a-zA-Z0-9]{22})/);if(m)ids.add('https://open.spotify.com/track/'+m[1]);" +
+    "});" +
+    "if(ids.size===0){alert('No track links found. Open a Spotify playlist page first.');return;}" +
+    "const text=Array.from(ids).join('\\n');" +
+    "navigator.clipboard.writeText(text).then(()=>alert('Copied '+ids.size+' track links! Paste them into Guess Melody.')).catch(()=>prompt('Copy these links:',text));" +
+    "})();"
+  );
+
+  const bookmarkletHref = decodeURIComponent(bookmarkletCode);
+
   const startGame = () => {
     if (tracks.length === 0) {
       setFeedback(t('singleplayer.needPlaylist'));
@@ -154,6 +237,7 @@ export default function Singleplayer() {
     setTracks(prev => [...prev].sort(() => Math.random() - 0.5));
     setGameStarted(true);
     setCurrentTrackIndex(0);
+    preloadedTrackIdRef.current = null;
     setAttempts(0);
     setScore(0);
     setArtistGuessed(false);
@@ -179,11 +263,7 @@ export default function Singleplayer() {
   const nextTrack = useCallback(() => {
     clearPlaybackTimers();
     if (deviceId) {
-      fetch('/api/spotify/pause', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceId }),
-      });
+      spotifyApi.pause(deviceId).catch(() => {});
     }
 
     if (currentTrackIndex >= tracks.length - 1) {
@@ -192,6 +272,7 @@ export default function Singleplayer() {
     }
 
     setCurrentTrackIndex(prev => prev + 1);
+    preloadedTrackIdRef.current = null;
     setAttempts(0);
     setIsPlaying(false);
     setArtistGuessed(false);
@@ -217,26 +298,21 @@ export default function Singleplayer() {
     setIsLoading(true);
 
     clearPlaybackTimers();
+
+    const snippetDuration = SNIPPETS[Math.min(attemptsRef.current, SNIPPETS.length - 1)];
+    let savedProgress = pausedProgressMsRef.current;
+    if (isPlayingRef.current && playStartTimeRef.current) {
+      const elapsed = Date.now() - playStartTimeRef.current;
+      savedProgress = Math.min(pausedProgressMsRef.current + elapsed, snippetDuration);
+    }
     playStartTimeRef.current = null;
 
-    let savedProgress = 0;
     try {
-      const res = await fetch('/api/spotify/pause', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceId }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (typeof data.progressMs === 'number') {
-          savedProgress = data.progressMs;
-        }
-      }
+      await spotifyApi.pause(deviceId);
     } catch (e) {
       console.error('Pause error', e);
     }
 
-    const snippetDuration = SNIPPETS[Math.min(attemptsRef.current, SNIPPETS.length - 1)];
     pausedProgressMsRef.current = Math.max(0, Math.min(savedProgress, snippetDuration));
 
     setIsPlaying(false);
@@ -275,23 +351,7 @@ export default function Singleplayer() {
     }
 
     try {
-      const playRes = await fetch('/api/spotify/play', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          trackId: currentTrack.spotifyTrackId,
-          positionMs: Math.max(0, startFrom),
-          deviceId,
-        }),
-      });
-
-      if (!playRes.ok) {
-        const err = await playRes.text();
-        console.error('Play failed:', err);
-        setFeedback(t('singleplayer.feedback.playError'));
-        setTimeout(() => setFeedback(''), 2000);
-        return;
-      }
+      await spotifyApi.play(deviceId, currentTrack.spotifyTrackId, Math.max(0, startFrom));
 
       const now = Date.now();
       playStartTimeRef.current = now;
@@ -305,11 +365,7 @@ export default function Singleplayer() {
       playTimeoutRef.current = window.setTimeout(async () => {
         if (isPlayingRef.current) {
           try {
-            await fetch('/api/spotify/pause', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ deviceId }),
-            });
+            await spotifyApi.pause(deviceId);
           } catch (e) {
             console.error('Auto-pause error', e);
           }
@@ -326,50 +382,6 @@ export default function Singleplayer() {
         }
       }, playDuration);
 
-      const snippetDuration = SNIPPETS[Math.min(attempt, SNIPPETS.length - 1)];
-      const startTime = Date.now();
-      safetyIntervalRef.current = window.setInterval(async () => {
-        if (Date.now() - startTime > snippetDuration + 3000) {
-          clearInterval(safetyIntervalRef.current);
-          return;
-        }
-        try {
-          const res = await fetch('/api/spotify/playback');
-          if (!res.ok) return;
-          const data = await res.json();
-          if (data.playing && typeof data.progressMs === 'number' && data.progressMs > snippetDuration + 300) {
-            await fetch('/api/spotify/pause', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ deviceId }),
-            });
-            setIsPlaying(false);
-            isPlayingRef.current = false;
-            setPlayStartTime(null);
-            playStartTimeRef.current = null;
-            setPausedProgressMs(0);
-            pausedProgressMsRef.current = 0;
-            setPlaybackProgressMs(snippetDuration);
-            setLastPlaybackUpdate(Date.now());
-            clearInterval(safetyIntervalRef.current);
-          }
-        } catch {
-          // ignore
-        }
-      }, 500);
-
-      [500, 1000, 1500, 2000, 3000, 5000].forEach(delay => {
-        const id = window.setTimeout(() => {
-          if (deviceId) {
-            fetch('/api/spotify/pause', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ deviceId }),
-            }).catch(() => {});
-          }
-        }, playDuration + delay);
-        safetyPauseTimeoutsRef.current.push(id);
-      });
     } catch (e) {
       console.error('Play error', e);
       setFeedback(t('singleplayer.feedback.playFailed'));
@@ -380,15 +392,51 @@ export default function Singleplayer() {
     }
   }, [deviceId, currentTrack]);
 
+  const preloadCurrentTrack = useCallback(async () => {
+    if (!deviceId || !currentTrack || !playerReady || preloadingRef.current) return;
+    if (preloadedTrackIdRef.current === currentTrack.spotifyTrackId) return;
+
+    const trackId = currentTrack.spotifyTrackId;
+    preloadingRef.current = true;
+    setIsLoading(true);
+
+    try {
+      await spotifyApi.volume(deviceId, 0);
+      await spotifyApi.play(deviceId, trackId, 0);
+
+      preloadTimeoutRef.current = window.setTimeout(async () => {
+        try {
+          await spotifyApi.pause(deviceId);
+          await spotifyApi.volume(deviceId, volume);
+          preloadedTrackIdRef.current = trackId;
+        } catch (e) {
+          console.error('Preload cleanup error', e);
+        } finally {
+          preloadingRef.current = false;
+          setIsLoading(false);
+        }
+      }, 1200);
+    } catch (e) {
+      console.error('Preload error', e);
+      preloadingRef.current = false;
+      setIsLoading(false);
+      try {
+        await spotifyApi.volume(deviceId, volume);
+      } catch {}
+    }
+  }, [deviceId, currentTrack, playerReady, volume]);
+
+  useEffect(() => {
+    if (gameStarted && currentTrack && deviceId && playerReady) {
+      preloadCurrentTrack();
+    }
+  }, [gameStarted, currentTrack?.spotifyTrackId, deviceId, playerReady, preloadCurrentTrack]);
+
   const advanceAttempt = async () => {
     if (attemptsRef.current >= SNIPPETS.length - 1) {
       clearPlaybackTimers();
       if (deviceId) {
-        await fetch('/api/spotify/pause', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deviceId }),
-        });
+        await spotifyApi.pause(deviceId).catch(() => {});
       }
       setIsPlaying(false);
       isPlayingRef.current = false;
@@ -408,11 +456,7 @@ export default function Singleplayer() {
 
     clearPlaybackTimers();
     if (deviceId && isPlayingRef.current) {
-      await fetch('/api/spotify/pause', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceId }),
-      });
+      await spotifyApi.pause(deviceId).catch(() => {});
     }
     setIsPlaying(false);
     isPlayingRef.current = false;
@@ -438,11 +482,14 @@ export default function Singleplayer() {
 
     const trackMatch = containsTokensInOrder(guessTokens, trackTokens);
 
+    const currentArtists = currentTrack.allArtistNames
+      ? currentTrack.allArtistNames.split(',').map(a => a.trim().toLowerCase()).filter(Boolean)
+      : [currentTrack.artistName.toLowerCase().trim()];
+
     const guessLower = guessText.toLowerCase().trim();
-    const artistLower = currentTrack.artistName.toLowerCase().trim();
-    const textArtistMatch = guessLower.length >= 2 && artistLower.includes(guessLower);
+    const textArtistMatch = guessLower.length >= 2 && currentArtists.some(a => a.includes(guessLower));
     const selectedArtistMatch = guessArtist.length > 0 &&
-      guessArtist.toLowerCase().trim() === artistLower;
+      currentArtists.some(a => guessArtist.toLowerCase().trim() === a);
     const artistMatch = textArtistMatch || selectedArtistMatch;
 
     const basePoints = POINTS[Math.min(attemptsRef.current, POINTS.length - 1)];
@@ -452,11 +499,7 @@ export default function Singleplayer() {
       const trackPoints = Math.max(0, basePoints - artistPointsAwardedRef.current);
       clearPlaybackTimers();
       if (deviceId) {
-        fetch('/api/spotify/pause', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deviceId }),
-        });
+        spotifyApi.pause(deviceId).catch(() => {});
       }
       setScore(prev => prev + trackPoints);
       setIsPlaying(false);
@@ -504,11 +547,7 @@ export default function Singleplayer() {
   const skipTrack = () => {
     clearPlaybackTimers();
     if (deviceId) {
-      fetch('/api/spotify/pause', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceId }),
-      });
+      spotifyApi.pause(deviceId).catch(() => {});
     }
     setFeedback(t('singleplayer.feedback.skipped', { track: currentTrack.name, artist: currentTrack.artistName }));
     setRevealedTrack(currentTrack);
@@ -528,11 +567,7 @@ export default function Singleplayer() {
       targetMs = snippetDuration;
       clearPlaybackTimers();
       if (deviceId && isPlayingRef.current) {
-        fetch('/api/spotify/pause', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deviceId }),
-        });
+        spotifyApi.pause(deviceId).catch(() => {});
       }
       setIsPlaying(false);
       isPlayingRef.current = false;
@@ -550,11 +585,7 @@ export default function Singleplayer() {
 
     if (deviceId && isPlayingRef.current) {
       try {
-        await fetch('/api/spotify/pause', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deviceId }),
-        });
+        await spotifyApi.pause(deviceId);
       } catch (e) {
         console.error('Seek pause error', e);
       }
@@ -604,7 +635,7 @@ export default function Singleplayer() {
         <button onClick={() => navigate('/')} className="p-2 hover:bg-brand-surface/50 rounded-full transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <VolumeSlider deviceId={deviceId} />
+        <VolumeSlider deviceId={deviceId} volume={volume} onVolumeChange={setVolume} />
         <div className="text-right">
           <div className="text-2xl font-bold text-brand-primary">{gameStarted ? score : 0}</div>
           <div className="text-xs text-brand-muted">{t('common.points')}</div>
@@ -636,6 +667,62 @@ export default function Singleplayer() {
                 {importing ? '...' : t('common.import')}
               </button>
             </div>
+          </div>
+
+          <div className="bg-brand-panel/80 backdrop-blur-sm rounded-2xl p-6 border border-brand-border/50">
+            <h2 className="text-lg font-bold mb-2">{t('singleplayer.importTracks')}</h2>
+            <p className="text-brand-muted text-sm mb-4">
+              {t('singleplayer.importTracksDesc')}
+            </p>
+            <div className="flex flex-col gap-3">
+              <textarea
+                value={trackListInput}
+                onChange={(e) => setTrackListInput(e.target.value)}
+                placeholder={t('singleplayer.importTracksPlaceholder')}
+                rows={5}
+                className="w-full bg-brand-surface/80 backdrop-blur-sm border border-brand-border/50 rounded-xl py-3 px-4 text-brand-text placeholder-brand-muted focus:outline-none focus:border-brand-primary resize-none"
+              />
+              <button
+                onClick={importTrackList}
+                disabled={importingTracks || !trackListInput.trim()}
+                className="self-end bg-brand-primary hover:bg-brand-secondary disabled:opacity-50 font-semibold text-brand-text font-bold px-5 py-2 rounded-xl transition-colors"
+              >
+                {importingTracks ? '...' : t('common.import')}
+              </button>
+            </div>
+            <div className="mt-4 pt-4 border-t border-brand-border/50 text-sm">
+              <p className="text-brand-muted mb-2">{t('singleplayer.bookmarkletHint')}</p>
+              <a
+                href={bookmarkletHref}
+                onClick={(e) => e.preventDefault()}
+                className="inline-flex items-center gap-2 bg-brand-surface/80 hover:bg-brand-surface/60 border border-brand-border/50 rounded-lg px-3 py-2 text-brand-text transition-colors cursor-move"
+                title={t('singleplayer.bookmarkletDragTitle')}
+              >
+                🔖 {t('singleplayer.bookmarkletLink')}
+              </a>
+            </div>
+          </div>
+
+          <div className="bg-brand-panel/80 backdrop-blur-sm rounded-2xl p-6 border border-brand-border/50">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-lg font-bold">{t('singleplayer.addTracks')}</h2>
+              {tracks.length > 0 && (
+                <button
+                  onClick={clearPool}
+                  className="text-xs flex items-center gap-1 text-brand-muted hover:text-red-400 transition-colors"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  {t('common.clear')}
+                </button>
+              )}
+            </div>
+            <p className="text-brand-muted text-sm mb-4">
+              {t('singleplayer.addTracksDesc')}
+            </p>
+            <SearchInput
+              onSelect={addTrackToPool}
+              placeholder={t('singleplayer.guessPlaceholder')}
+            />
           </div>
 
           {tracks.length > 0 && (

@@ -33,6 +33,7 @@ public class GameTrackPoolServiceImpl implements GameTrackPoolService {
                 .spotifyTrackId(searchResult.getSpotifyTrackId())
                 .name(searchResult.getName())
                 .artistName(searchResult.getArtistName())
+                .allArtistNames(searchResult.getAllArtistNames())
                 .durationMs(searchResult.getDurationMs())
                 .previewUrl(searchResult.getPreviewUrl())
                 .build();

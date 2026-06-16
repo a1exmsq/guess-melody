@@ -17,6 +17,14 @@ public final class SpotifyUrlParser {
             "^[a-zA-Z0-9]{22}$"
     );
 
+    private static final Pattern TRACK_WEB_URL_PATTERN = Pattern.compile(
+            "spotify\\.com/track/([a-zA-Z0-9]+)"
+    );
+
+    private static final Pattern TRACK_URI_PATTERN = Pattern.compile(
+            "spotify:track:([a-zA-Z0-9]+)"
+    );
+
     private SpotifyUrlParser() {
     }
 
@@ -59,6 +67,32 @@ public final class SpotifyUrlParser {
 
         throw new IllegalArgumentException(
                 "Could not parse Spotify playlist link: " + trimmed
+        );
+    }
+
+    public static String extractTrackId(String input) {
+        if (input == null || input.isBlank()) {
+            throw new IllegalArgumentException("Track link cannot be empty");
+        }
+
+        String trimmed = input.trim();
+
+        if (RAW_ID_PATTERN.matcher(trimmed).matches()) {
+            return trimmed;
+        }
+
+        Matcher uriMatcher = TRACK_URI_PATTERN.matcher(trimmed);
+        if (uriMatcher.find()) {
+            return uriMatcher.group(1);
+        }
+
+        Matcher webMatcher = TRACK_WEB_URL_PATTERN.matcher(trimmed);
+        if (webMatcher.find()) {
+            return webMatcher.group(1);
+        }
+
+        throw new IllegalArgumentException(
+                "Could not parse Spotify track link: " + trimmed
         );
     }
 }

@@ -1,6 +1,8 @@
 package com.guessmelody.controller;
 
+import com.guessmelody.exception.SpotifyApiException;
 import com.guessmelody.service.SpotifyAuthService;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -27,7 +29,8 @@ public class SpotifyAuthController {
     public ResponseEntity<String> callback(
             @RequestParam(required = false) String code,
             @RequestParam(required = false) String error,
-            @RequestParam(required = false) String error_description) {
+            @RequestParam(required = false) String error_description,
+            HttpSession session) {
 
         if (error != null) {
             log.error("Spotify returned error: {} — {}", error, error_description);
@@ -41,12 +44,12 @@ public class SpotifyAuthController {
             log.error("Callback called without code and without error");
             return ResponseEntity.badRequest().body(
                     "Authorization code was not received from Spotify.\n" +
-                    "Make sure the redirect URI in the Spotify Dashboard is set to http://127.0.0.1:8080/api/spotify/callback"
+                    "Make sure the redirect URI in the Spotify Dashboard is set correctly."
             );
         }
 
         log.info("Received Spotify authorization code, exchanging for token...");
-        authService.exchangeCode(code);
+        authService.exchangeCode(code, session);
         return ResponseEntity.ok()
                 .header("Content-Type", "text/html; charset=UTF-8")
                 .body("""
@@ -64,17 +67,17 @@ public class SpotifyAuthController {
     }
 
     @GetMapping("/status")
-    public ResponseEntity<Map<String, Boolean>> status() {
-        return ResponseEntity.ok(Map.of("authorized", authService.isAuthorized()));
+    public ResponseEntity<Map<String, Boolean>> status(HttpSession session) {
+        return ResponseEntity.ok(Map.of("authorized", authService.isUserAuthorized(session)));
     }
 
     @GetMapping("/me")
-    public ResponseEntity<?> getMe() {
+    public ResponseEntity<?> getMe(HttpSession session) {
         try {
-            if (!authService.isAuthorized()) {
+            if (!authService.isUserAuthorized(session)) {
                 return ResponseEntity.status(401).body(Map.of("error", "Not authorized"));
             }
-            var profile = authService.getCurrentUserProfile();
+            var profile = authService.getCurrentUserProfile(session);
             return ResponseEntity.ok(Map.of(
                     "displayName", profile.getDisplayName(),
                     "id", profile.getId(),
@@ -91,18 +94,24 @@ public class SpotifyAuthController {
     }
 
     @GetMapping("/token")
-    public ResponseEntity<?> getToken() {
+    public ResponseEntity<?> getToken(HttpSession session) {
         try {
-            String token = authService.getAccessToken();
-            if (token == null) {
-                return ResponseEntity.status(401).body(Map.of("error", "Not authorized"));
-            }
+            String token = authService.getAccessToken(session);
             return ResponseEntity.ok(Map.of(
                     "token", token,
                     "expiresIn", 3600
             ));
+        } catch (SpotifyApiException e) {
+            return ResponseEntity.status(e.getStatusCode() > 0 ? e.getStatusCode() : 401)
+                    .body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Map<String, Boolean>> logout(HttpSession session) {
+        authService.logout(session);
+        return ResponseEntity.ok(Map.of("authorized", false));
     }
 }

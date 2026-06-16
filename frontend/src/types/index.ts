@@ -3,6 +3,7 @@ export interface Track {
   spotifyTrackId: string;
   name: string;
   artistName: string;
+  allArtistNames?: string;
   albumName: string;
   previewUrl: string | null;
   imageUrl: string | null;

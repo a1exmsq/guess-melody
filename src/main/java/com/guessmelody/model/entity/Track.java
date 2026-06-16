@@ -25,6 +25,9 @@ public class Track {
     @Column(name = "artist_name", nullable = false)
     private String artistName;
 
+    @Column(name = "all_artist_names", length = 1024)
+    private String allArtistNames;
+
     @Column(name = "duration_ms")
     private Integer durationMs;
 

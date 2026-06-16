@@ -9,6 +9,7 @@ public class TrackSearchResult {
     private String spotifyTrackId;
     private String name;
     private String artistName;
+    private String allArtistNames;
     private String albumName;
     private String previewUrl;
     private Integer durationMs;

@@ -1,6 +1,8 @@
 package com.guessmelody.controller;
 
+import com.guessmelody.service.SpotifyAuthService;
 import com.guessmelody.service.SpotifyCategoryService;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -16,11 +18,13 @@ import java.util.Map;
 public class SpotifyCategoryController {
 
     private final SpotifyCategoryService categoryService;
+    private final SpotifyAuthService authService;
 
     @GetMapping("/categories")
-    public ResponseEntity<?> getCategories() {
+    public ResponseEntity<?> getCategories(HttpSession session) {
         try {
-            var categories = categoryService.getCategories();
+            var api = authService.requireUserApi(session);
+            var categories = categoryService.getCategories(api);
             var result = categories.stream()
                     .map(c -> Map.of(
                             "id", c.getId(),
@@ -35,9 +39,10 @@ public class SpotifyCategoryController {
     }
 
     @GetMapping("/categories/{id}/playlists")
-    public ResponseEntity<?> getCategoryPlaylists(@PathVariable String id) {
+    public ResponseEntity<?> getCategoryPlaylists(@PathVariable String id, HttpSession session) {
         try {
-            var playlists = categoryService.getCategoryPlaylists(id);
+            var api = authService.requireUserApi(session);
+            var playlists = categoryService.getCategoryPlaylists(api, id);
             var result = playlists.stream()
                     .map(p -> Map.of(
                             "id", p.getId(),
@@ -53,9 +58,10 @@ public class SpotifyCategoryController {
     }
 
     @PostMapping("/random-playlist")
-    public ResponseEntity<?> importRandomPlaylist() {
+    public ResponseEntity<?> importRandomPlaylist(HttpSession session) {
         try {
-            var playlist = categoryService.importRandomPlaylist();
+            var api = authService.requireUserApi(session);
+            var playlist = categoryService.importRandomPlaylist(api);
             return ResponseEntity.ok(Map.of(
                     "id", playlist.getId(),
                     "name", playlist.getName(),
