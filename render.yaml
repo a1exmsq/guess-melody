@@ -9,25 +9,15 @@ services:
       - key: SERVER_PORT
         value: 8080
       - key: PGHOST
-        fromDatabase:
-          name: guess-melody-db
-          property: host
+        sync: false
       - key: PGPORT
-        fromDatabase:
-          name: guess-melody-db
-          property: port
+        sync: false
       - key: PGDATABASE
-        fromDatabase:
-          name: guess-melody-db
-          property: database
+        sync: false
       - key: PGUSER
-        fromDatabase:
-          name: guess-melody-db
-          property: user
+        sync: false
       - key: PGPASSWORD
-        fromDatabase:
-          name: guess-melody-db
-          property: password
+        sync: false
       - key: SPOTIFY_CLIENT_ID
         sync: false
       - key: SPOTIFY_CLIENT_SECRET
@@ -40,9 +30,3 @@ services:
         value: amdin
       - key: SITE_AUTH_PASSWORD
         sync: false
-
-databases:
-  - name: guess-melody-db
-    plan: free
-    databaseName: guessmelody
-    user: guessmelody
