@@ -62,8 +62,8 @@ public class GameTrackPoolServiceImpl implements GameTrackPoolService {
     @Override
     @Transactional
     public void clearPool() {
-        trackRepository.deleteAll();
-        log.info("Track pool cleared");
+        trackRepository.deleteByPlaylistIsNull();
+        log.info("Track pool cleared (tracks without playlist)");
     }
 
     @Override

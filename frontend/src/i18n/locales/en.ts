@@ -65,6 +65,7 @@ export default {
       playFailed: '❌ Failed to play',
       trackAdded: '✅ Track added',
       trackAddError: '❌ Failed to add track',
+      importPlaylistFirst: '❌ Import a playlist first',
       correct: '✅ Correct! +{{points}} points',
       artist: '🎤 Artist guessed! +{{points}} points. Guess the title!',
       artistAlreadyGuessed: '🎤 Artist already known',

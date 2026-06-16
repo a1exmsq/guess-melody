@@ -13,4 +13,8 @@ public interface TrackRepository extends JpaRepository<Track, Long> {
     Optional<Track> findBySpotifyTrackId(String spotifyTrackId);
 
     List<Track> findByPlaylistId(Long playlistId);
+
+    List<Track> findByPlaylistIsNull();
+
+    void deleteByPlaylistIsNull();
 }

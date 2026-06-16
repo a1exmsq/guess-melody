@@ -65,6 +65,7 @@ export default {
       playFailed: '❌ Не удалось воспроизвести',
       trackAdded: '✅ Трек добавлен',
       trackAddError: '❌ Не удалось добавить трек',
+      importPlaylistFirst: '❌ Сначала импортируй плейлист',
       correct: '✅ Правильно! +{{points}} очков',
       artist: '🎤 Исполнитель угадан! +{{points}} очков. Угадай название!',
       artistAlreadyGuessed: '🎤 Исполнитель уже известен',

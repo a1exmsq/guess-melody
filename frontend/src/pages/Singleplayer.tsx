@@ -137,9 +137,7 @@ export default function Singleplayer() {
   const loadTracks = (playlistId?: number | null) => {
     const id = playlistId !== undefined ? playlistId : currentPlaylistId;
     if (id == null) {
-      fetch('/api/tracks/pool')
-        .then(r => r.json())
-        .then(data => setTracks(data));
+      setTracks([]);
       return;
     }
     fetch(`/api/playlists/${id}/tracks`)
@@ -148,11 +146,13 @@ export default function Singleplayer() {
   };
 
   const addTrackToPool = async (track: Track) => {
-    const url = currentPlaylistId != null
-      ? `/api/playlists/${currentPlaylistId}/tracks`
-      : '/api/tracks/pool';
+    if (currentPlaylistId == null) {
+      setFeedback(t('singleplayer.feedback.importPlaylistFirst'));
+      setTimeout(() => setFeedback(''), 2000);
+      return;
+    }
     try {
-      const res = await fetch(url, {
+      const res = await fetch(`/api/playlists/${currentPlaylistId}/tracks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(track),
@@ -170,11 +170,12 @@ export default function Singleplayer() {
   };
 
   const clearPool = async () => {
-    const url = currentPlaylistId != null
-      ? `/api/playlists/${currentPlaylistId}/tracks`
-      : '/api/tracks/pool';
+    if (currentPlaylistId == null) {
+      setTracks([]);
+      return;
+    }
     try {
-      await fetch(url, { method: 'DELETE' });
+      await fetch(`/api/playlists/${currentPlaylistId}/tracks`, { method: 'DELETE' });
       loadTracks();
     } catch {
       // ignore
