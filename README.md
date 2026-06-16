@@ -4,6 +4,16 @@ A full-stack web application where players guess songs from short Spotify snippe
 
 > **Note:** This is an educational pet project. It is not affiliated with or endorsed by Spotify.
 
+## 🌐 Live Demo
+
+The application is deployed on Render:
+
+**🔗 https://guess-melody-cd6o.onrender.com**
+
+> The demo is protected by a site-wide login. Use the credentials configured in the Render environment variables (`SITE_AUTH_USER` / `SITE_AUTH_PASSWORD`).
+>
+> Spotify login is required for playback and playlist import. Make sure your Spotify account has access to the Web Playback SDK (Premium is needed for full playback control).
+
 ---
 
 ## ✨ Features
@@ -194,7 +204,8 @@ This starts:
 ## 🛣️ Roadmap / Possible Improvements
 
 - [ ] Replace in-memory room state with Redis for horizontal scaling
-- [ ] Deploy to AWS / Azure / Render
+- [x] Deploy to Render
+- [ ] Deploy to AWS / Azure
 - [ ] Add spectator mode and persistent game history
 - [ ] Add public/private room visibility
 - [ ] Add end-to-end tests with Playwright
