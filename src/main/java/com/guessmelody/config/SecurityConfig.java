@@ -3,10 +3,13 @@ package com.guessmelody.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -42,6 +45,7 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> {
+                auth.requestMatchers("/login", "/logout", "/assets/**", "/favicon.ico", "/vite.svg").permitAll();
                 auth.requestMatchers("/api/spotify/callback", "/api/spotify/login", "/api/spotify/status").permitAll();
                 auth.requestMatchers("/ws/**", "/topic/**", "/app/**").permitAll();
                 auth.requestMatchers("/h2-console/**").permitAll();
@@ -54,7 +58,14 @@ public class SecurityConfig {
             .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()));
 
         if (passwordEnabled) {
-            http.httpBasic(Customizer.withDefaults());
+            http.formLogin(Customizer.withDefaults())
+                .logout(Customizer.withDefaults())
+                .exceptionHandling(ex -> ex
+                    .defaultAuthenticationEntryPointFor(
+                        new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
+                        new AntPathRequestMatcher("/api/**")
+                    )
+                );
         }
 
         return http.build();

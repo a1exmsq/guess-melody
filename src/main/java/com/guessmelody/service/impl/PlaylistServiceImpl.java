@@ -37,15 +37,20 @@ public class PlaylistServiceImpl implements PlaylistService {
         String playlistId = SpotifyUrlParser.extractPlaylistId(url);
         log.info("Importing playlist {} with user-provided Spotify API", playlistId);
 
-        var existing = playlistRepository.findBySpotifyPlaylistId(playlistId);
-        if (existing.isPresent()) {
-            log.info("Playlist {} already imported, returning existing", playlistId);
-            return mapToImportResponse(existing.get());
-        }
+        Playlist imported = importer.importPlaylist(api, playlistId);
 
-        Playlist playlist = importer.importPlaylist(api, playlistId);
+        Playlist playlist = playlistRepository.findBySpotifyPlaylistId(playlistId)
+                .orElseGet(() -> Playlist.builder()
+                        .spotifyPlaylistId(playlistId)
+                        .tracks(new ArrayList<>())
+                        .build());
 
-        playlist.getTracks().forEach(track -> track.setPlaylist(playlist));
+        playlist.setName(imported.getName());
+        playlist.getTracks().clear();
+        playlistRepository.saveAndFlush(playlist);
+
+        List<Track> tracks = reconcileTracks(playlist, imported.getTracks());
+        playlist.getTracks().addAll(tracks);
 
         Playlist saved = playlistRepository.save(playlist);
         log.info("Saved playlist '{}' with {} tracks", saved.getName(), saved.getTracks().size());
@@ -63,20 +68,13 @@ public class PlaylistServiceImpl implements PlaylistService {
         String playlistName = name != null && !name.isBlank() ? name.trim() : "Imported Tracks";
         Playlist playlist = importer.importFromTrackUrls(api, trackUrls, playlistName);
 
-        Set<String> existingIds = trackRepository.findAll().stream()
-                .map(Track::getSpotifyTrackId)
-                .collect(Collectors.toSet());
+        List<Track> tracks = reconcileTracks(playlist, playlist.getTracks());
+        playlist.setTracks(tracks);
 
-        List<Track> uniqueTracks = playlist.getTracks().stream()
-                .filter(t -> !existingIds.contains(t.getSpotifyTrackId()))
-                .peek(t -> t.setPlaylist(playlist))
-                .collect(Collectors.toList());
-
-        if (uniqueTracks.isEmpty()) {
-            throw new SpotifyApiException("All provided tracks are already in the pool or could not be fetched.");
+        if (tracks.isEmpty()) {
+            throw new SpotifyApiException("No tracks could be imported. Check the links and try again.");
         }
 
-        playlist.setTracks(uniqueTracks);
         Playlist saved = playlistRepository.save(playlist);
         log.info("Saved manual playlist '{}' with {} tracks", saved.getName(), saved.getTracks().size());
         return mapToImportResponse(saved);
@@ -160,6 +158,27 @@ public class PlaylistServiceImpl implements PlaylistService {
 
         playlist.getTracks().clear();
         playlistRepository.save(playlist);
+    }
+
+    private List<Track> reconcileTracks(Playlist playlist, List<Track> importedTracks) {
+        List<Track> result = new ArrayList<>();
+        for (Track imported : importedTracks) {
+            Track track = trackRepository.findBySpotifyTrackId(imported.getSpotifyTrackId())
+                    .orElseGet(() -> Track.builder()
+                            .spotifyTrackId(imported.getSpotifyTrackId())
+                            .build());
+            track.setName(imported.getName());
+            track.setArtistName(imported.getArtistName());
+            track.setAllArtistNames(imported.getAllArtistNames());
+            track.setDurationMs(imported.getDurationMs());
+            track.setPreviewUrl(imported.getPreviewUrl());
+            track.setImageUrl(imported.getImageUrl());
+            track.setGenres(imported.getGenres());
+            track.setIsRussian(imported.getIsRussian());
+            track.setPlaylist(playlist);
+            result.add(track);
+        }
+        return result;
     }
 
     private PlaylistImportResponse mapToImportResponse(Playlist playlist) {
