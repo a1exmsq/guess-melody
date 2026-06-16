@@ -37,7 +37,7 @@ services:
       - key: CORS_ALLOWED_ORIGINS
         sync: false
       - key: SITE_AUTH_USER
-        sync: false
+        value: amdin
       - key: SITE_AUTH_PASSWORD
         sync: false
 
